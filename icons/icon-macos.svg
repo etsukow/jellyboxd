@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- macOS app icon: the Jellyboxd ticket on a dark rounded square (Apple's 824 px grid inside 1024). -->
+  <defs>
+    <mask id="cut">
+      <rect x="4" y="26" width="120" height="76" rx="12" fill="#fff"/>
+      <circle cx="4" cy="64" r="12" fill="#000"/>
+      <circle cx="124" cy="64" r="12" fill="#000"/>
+      <line x1="90" y1="30" x2="90" y2="98" stroke="#000" stroke-width="4"/>
+      <path d="M40 46 L40 82 L69 64 Z" fill="#000" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#14181c"/>
+  <g transform="translate(212 212) scale(4.6875)">
+    <g mask="url(#cut)">
+      <rect x="4" y="26" width="120" height="76" rx="12" fill="#f04a5e"/>
+      <rect x="90" y="26" width="34" height="76" fill="#000" fill-opacity="0.28"/>
+    </g>
+  </g>
+</svg>
