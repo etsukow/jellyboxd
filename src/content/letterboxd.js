@@ -218,9 +218,55 @@
         .filter(Boolean)
         .slice(0, 2);
     } catch (_err) {
-      // No structured data: the popup shows the film without poster.
+      // No structured data: fall back to the poster image below.
     }
+    if (!out.poster) {
+      var img = doc.querySelector('img[src*="ltrbxd.com/resized/film-poster"]');
+      out.poster = img ? img.getAttribute('src') || '' : '';
+    }
+    // A small size is enough for the popup.
+    out.poster = out.poster.replace(/-0-\d+-0-\d+-crop/, '-0-230-0-345-crop');
     return out;
+  }
+
+  // The popup gets the poster as a data URL: some browsers (Safari) do not load images from
+  // Letterboxd's image server in extension pages. The server allows letterboxd.com to read them.
+  var posterCache = {};
+  async function posterDataUrl(url) {
+    if (!url) {
+      return '';
+    }
+    if (posterCache[url]) {
+      return posterCache[url];
+    }
+    try {
+      var res = await fetch(url, { credentials: 'omit' });
+      if (!res.ok) {
+        return url;
+      }
+      var blob = await res.blob();
+      if (!/^image\//.test(blob.type) || blob.size > 300000) {
+        return url;
+      }
+      var data = await new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          resolve(reader.result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      posterCache[url] = data;
+      return data;
+    } catch (_err) {
+      return url;
+    }
+  }
+
+  async function tabSummaryWithPoster() {
+    var summary = tabSummary();
+    summary.film.poster = await posterDataUrl(summary.film.poster);
+    return summary;
   }
 
   // Review pages (/<member>/film/<slug>/, or /<n>/ for a rewatch) carry no TMDB id: read it from the
@@ -231,7 +277,7 @@
   }
 
   async function fetchReviewedFilm(slug) {
-    var cacheKey = 'jellyboxd:film:' + slug;
+    var cacheKey = 'jellyboxd:film2:' + slug;
     try {
       var cached = JSON.parse(global.sessionStorage.getItem(cacheKey) || 'null');
       if (cached && cached.tmdbId) {
@@ -1678,7 +1724,8 @@
     }
     ext.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
       if (message && message.type === MSG.TAB_SUMMARY) {
-        sendResponse(tabSummary());
+        tabSummaryWithPoster().then(sendResponse);
+        return true;
       } else if (message && message.type === MSG.TAB_REQUEST) {
         // The popup's Request button: same request as the widget's, with its current choices.
         if (!currentState || isSubmitting || !buildView(currentState).form) {
@@ -1687,7 +1734,9 @@
         }
         handleSubmitRequest(syncFormDefaults(currentState)).then(function () {
           var failed = feedback && feedback.type === 'error';
-          sendResponse(Object.assign(tabSummary(), failed ? { ok: false, error: feedback.text } : {}));
+          return tabSummaryWithPoster().then(function (summary) {
+            sendResponse(Object.assign(summary, failed ? { ok: false, error: feedback.text } : {}));
+          });
         });
         return true;
       }
