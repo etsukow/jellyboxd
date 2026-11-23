@@ -73,7 +73,9 @@
     }
 
     // Must be the first await of the click: browsers only show the prompt during a user action.
-    var granted = await ns.api.permissionsRequest([pattern]);
+    var granted = await ns.api.permissionsRequest(
+      method === 'apiKey' ? [pattern] : ns.utils.buildSessionPatterns(seerrUrl)
+    );
     if (!granted) {
       setStatus('Jellyboxd needs access to ' + seerrUrl.replace(/^https?:\/\//, '') + ' to work.', 'err');
       return;
@@ -128,12 +130,25 @@
     var seerrUrl = ns.utils.normalizeBaseUrl(urlInput.value);
     var cookieValue = null;
     try {
-      var cookies = await ns.api.call(ext.cookies, 'getAll', [{ url: seerrUrl + '/' }]);
-      var sid = (cookies || []).find(function (c) {
-        return c.name === 'connect.sid';
+      var stores = await ns.api.call(ext.cookies, 'getAllCookieStores', []).catch(function () {
+        return [];
       });
-      cookieValue = sid ? sid.value : null;
-      lines.push('Window sees the session cookie: ' + (sid ? 'yes' : 'no') + ' (' + (cookies || []).length + ' cookies)');
+      lines.push('Cookie stores: ' + stores.length + (stores.length ? ' (' + stores.map(function (s) { return s.id; }).join(', ') + ')' : ''));
+      var ids = stores.length ? stores.map(function (s) { return s.id; }) : [null];
+      for (var i = 0; i < ids.length; i += 1) {
+        var q = { url: seerrUrl + '/' };
+        if (ids[i] !== null) {
+          q.storeId = ids[i];
+        }
+        var cookies = await ns.api.call(ext.cookies, 'getAll', [q]);
+        var sid = (cookies || []).find(function (c) {
+          return c.name === 'connect.sid';
+        });
+        lines.push('Store ' + ids[i] + ': ' + (cookies || []).length + ' cookies, session ' + (sid ? 'yes' : 'no'));
+        if (sid && !cookieValue) {
+          cookieValue = sid.value;
+        }
+      }
     } catch (err) {
       lines.push('Window cookies API: ' + err.message);
     }

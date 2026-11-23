@@ -109,6 +109,21 @@
     }
   }
 
+  // Access patterns for a Seerr address. An https address also gets its http pattern: Seerr marks
+  // its session cookie Secure only when it knows the page is https, which it does not behind a
+  // reverse proxy unless "Enable Proxy Support" is on. Safari then files the cookie under http://
+  // and hides it from extensions that only hold the https:// pattern.
+  function buildSessionPatterns(rawUrl) {
+    var pattern = buildOriginPattern(rawUrl);
+    if (!pattern) {
+      return [];
+    }
+    if (pattern.indexOf('https://') === 0) {
+      return [pattern, 'http://' + pattern.slice('https://'.length)];
+    }
+    return [pattern];
+  }
+
   function buildOriginPattern(rawUrl) {
     var normalized = normalizeBaseUrl(rawUrl);
     if (!normalized) {
@@ -299,6 +314,7 @@
   ns.utils = {
     normalizeBaseUrl: normalizeBaseUrl,
     buildOriginPattern: buildOriginPattern,
+    buildSessionPatterns: buildSessionPatterns,
     isSafeHttpUrl: isSafeHttpUrl,
     formatBytes: formatBytes,
     canRequestStatus: canRequestStatus,

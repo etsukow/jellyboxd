@@ -26,20 +26,56 @@
       : null;
   }
 
-  async function readSessionCookie(seerrUrl) {
+  // Cookie stores to search. Browsers keep one per profile (Safari profiles, Firefox containers)
+  // and the background reads the default one unless told otherwise.
+  async function cookieStores() {
     var e = ext();
-    if (!e || !e.cookies || typeof e.cookies.getAll !== 'function' || !seerrUrl) {
-      return null;
-    }
     try {
-      var cookies = await ns.api.call(e.cookies, 'getAll', [{ url: seerrUrl + '/' }]);
-      var match = (cookies || []).find(function (c) {
-        return c && c.name === COOKIE_NAME;
+      var stores = await ns.api.call(e.cookies, 'getAllCookieStores', []);
+      var ids = (stores || []).map(function (s) {
+        return s && s.id;
+      }).filter(function (id) {
+        return id !== undefined && id !== null;
       });
-      return match ? match.value : null;
+      return ids.length ? ids : [null];
     } catch (_err) {
-      return null;
+      return [null];
     }
+  }
+
+  // Returns { value, store, stores } for the first session cookie found in any store.
+  async function findSessionCookie(seerrUrl) {
+    var e = ext();
+    var result = { value: null, store: null, stores: 0 };
+    if (!e || !e.cookies || typeof e.cookies.getAll !== 'function' || !seerrUrl) {
+      return result;
+    }
+    var stores = await cookieStores();
+    result.stores = stores.length;
+    for (var i = 0; i < stores.length; i += 1) {
+      var query = { url: seerrUrl + '/' };
+      if (stores[i] !== null) {
+        query.storeId = stores[i];
+      }
+      try {
+        var cookies = await ns.api.call(e.cookies, 'getAll', [query]);
+        var match = (cookies || []).find(function (c) {
+          return c && c.name === COOKIE_NAME;
+        });
+        if (match) {
+          result.value = match.value;
+          result.store = stores[i];
+          return result;
+        }
+      } catch (_err) {
+        // Try the next store.
+      }
+    }
+    return result;
+  }
+
+  async function readSessionCookie(seerrUrl) {
+    return (await findSessionCookie(seerrUrl)).value;
   }
 
   async function removeRule() {
@@ -139,6 +175,7 @@
   ns.session = {
     syncSession: syncSession,
     readSessionCookie: readSessionCookie,
+    findSessionCookie: findSessionCookie,
     setRule: setRule,
     // True while the network rule carries the session cookie.
     isRuleActive: function () {

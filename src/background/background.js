@@ -662,8 +662,11 @@
       return { ok: true, report: out };
     }
     out.access = await hasOriginPermission(settings.seerrUrl);
-    var value = await ns.session.readSessionCookie(settings.seerrUrl);
-    out.cookieVisible = Boolean(value);
+    out.sessionAccess = await ns.api.permissionsContains(ns.utils.buildSessionPatterns(settings.seerrUrl));
+    var found = await ns.session.findSessionCookie(settings.seerrUrl);
+    var value = found.value;
+    out.cookieStores = found.stores;
+    out.cookieVisible = Boolean(value) + (value ? ' (store ' + found.store + ')' : '');
     if (!value && payload && payload.cookieFromPage) {
       // The page could read it: try the rule with the page's copy.
       value = payload.cookieFromPage;

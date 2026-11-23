@@ -284,7 +284,9 @@
       return;
     }
     // First await of the click: browsers only show the access prompt during a user action.
-    var granted = await ns.api.permissionsRequest([pattern]);
+    var granted = await ns.api.permissionsRequest(
+      method === 'apiKey' ? [pattern] : ns.utils.buildSessionPatterns(seerrUrl)
+    );
     if (!granted) {
       setLineState(el.seerrState, 'Access not allowed', 'err');
       return;
