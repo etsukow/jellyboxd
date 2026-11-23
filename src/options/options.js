@@ -6,7 +6,6 @@
 
   var globalStatusBadge = document.getElementById('globalStatusBadge');
   var globalStatusText = document.getElementById('globalStatusText');
-  var seerrBeam = document.getElementById('seerrBeam');
   var optionsForm = document.getElementById('optionsForm');
 
   var seerrUrlInput = document.getElementById('seerrUrl');
@@ -48,8 +47,8 @@
   var globalFeedback = document.getElementById('globalFeedback');
 
   var WIDGET_STYLE_HELP = {
-    native: 'Le composant prolonge le panneau d’actions de Letterboxd : mêmes couleurs, mêmes lignes.',
-    ticket: 'Le composant prend la forme d’un ticket de cinéma, avec un talon détachable comme bouton.'
+    native: 'Extends Letterboxd’s actions panel: same colours, same rows.',
+    ticket: 'A cinema ticket whose tear-off stub is the main button.'
   };
 
   var selectedAuthMode = 'apiKey';
@@ -58,24 +57,9 @@
   var resetArmed = false;
   var resetTimer = null;
 
-  document.querySelectorAll('.lbx-magic-card').forEach(function (card) {
-    ns.ui.attachMagicCard(card);
-  });
-
   function setGlobalBadge(text, tone) {
     globalStatusText.textContent = text;
-    globalStatusBadge.className = 'lbx-status-plate lbx-tone-' + (tone || 'unknown');
-    if (seerrBeam) {
-      var beamTone =
-        tone === 'available'
-          ? 'available'
-          : tone === 'pending'
-            ? 'pending'
-            : tone === 'blocked'
-              ? 'blocked'
-              : 'default';
-      seerrBeam.setAttribute('data-beam-tone', beamTone);
-    }
+    globalStatusBadge.className = 'lbx-status lbx-tone-' + (tone || 'unknown');
   }
 
   function showBox(boxEl, lines, tone) {
@@ -165,12 +149,12 @@
 
     var autoProfOpt = document.createElement('option');
     autoProfOpt.value = '';
-    autoProfOpt.textContent = 'Profil par défaut du serveur';
+    autoProfOpt.textContent = 'Server default';
     defaultRadarrProfileSelect.appendChild(autoProfOpt);
 
     var autoFolderOpt = document.createElement('option');
     autoFolderOpt.value = '';
-    autoFolderOpt.textContent = 'Dossier par défaut du serveur';
+    autoFolderOpt.textContent = 'Server default';
     defaultRadarrFolderSelect.appendChild(autoFolderOpt);
 
     if (!server) {
@@ -192,7 +176,7 @@
       opt.value = folder.path;
       var space =
         typeof folder.freeSpace === 'number'
-          ? ' (' + ns.utils.formatBytes(folder.freeSpace) + ' libres)'
+          ? ' (' + ns.utils.formatBytes(folder.freeSpace) + ' free)'
           : '';
       opt.textContent = folder.path + space;
       if (preferredFolder && folder.path === preferredFolder) {
@@ -211,7 +195,7 @@
 
     var autoSrvOpt = document.createElement('option');
     autoSrvOpt.value = '';
-    autoSrvOpt.textContent = 'Sélection automatique';
+    autoSrvOpt.textContent = 'Pick automatically';
     defaultRadarrServerSelect.appendChild(autoSrvOpt);
 
     var matched = null;
@@ -242,7 +226,7 @@
     }
     var defaultOpt = document.createElement('option');
     defaultOpt.value = '';
-    defaultOpt.textContent = 'Compte par défaut (admin clé API)';
+    defaultOpt.textContent = 'API key owner (default)';
     seerrUserIdSelect.appendChild(defaultOpt);
 
     (users || []).forEach(function (u) {
@@ -269,7 +253,7 @@
 
     if (settings.seerrUserId !== null && settings.seerrUserId !== undefined) {
       populateUsers(
-        [{ id: settings.seerrUserId, displayName: 'Utilisateur #' + settings.seerrUserId, email: '' }],
+        [{ id: settings.seerrUserId, displayName: 'User #' + settings.seerrUserId, email: '' }],
         settings.seerrUserId
       );
     }
@@ -282,25 +266,25 @@
     });
 
     if (res && res.ok) {
-      var who = (res.user && res.user.displayName) || 'Utilisateur inconnu';
-      var version = (res.status && res.status.version) || 'n/c';
+      var who = (res.user && res.user.displayName) || 'Unknown user';
+      var version = (res.status && res.status.version) || 'n/a';
       var radarrList = (res.radarr && res.radarr.servers) || [];
       var sonarrList = (res.sonarr && res.sonarr.servers) || [];
       var radarrProfilesCount = radarrList.reduce(function (acc, s) {
         return acc + (s.profiles ? s.profiles.length : 0);
       }, 0);
 
-      setGlobalBadge('Connecté · ' + who, 'available');
+      setGlobalBadge('Connected · ' + who, 'available');
       showBox(
         seerrDiagBox,
         [
-          'Connexion Seerr OK (version ' + version + ') · Utilisateur : ' + who,
-          'Radarr : ' +
+          'Seerr connection OK (version ' + version + ') · User: ' + who,
+          'Radarr: ' +
             radarrList.length +
-            ' serveur(s), ' +
+            ' server(s), ' +
             radarrProfilesCount +
-            ' profil(s) de qualité' +
-            (sonarrList.length > 0 ? ' · Sonarr : ' + sonarrList.length + ' serveur(s)' : '')
+            ' quality profile(s)' +
+            (sonarrList.length > 0 ? ' · Sonarr: ' + sonarrList.length + ' server(s)' : '')
         ],
         'ok'
       );
@@ -316,11 +300,11 @@
     }
 
     if (res && res.permissionMissing) {
-      setGlobalBadge('Permission requise', 'pending');
+      setGlobalBadge('Permission required', 'pending');
       showBox(seerrDiagBox, res.error, 'warn');
     } else {
-      setGlobalBadge('Erreur Seerr', 'blocked');
-      showBox(seerrDiagBox, (res && res.error) || 'Échec du test de connexion Seerr.', 'err');
+      setGlobalBadge('Seerr error', 'blocked');
+      showBox(seerrDiagBox, (res && res.error) || 'Seerr connection test failed.', 'err');
     }
     return false;
   }
@@ -328,7 +312,7 @@
   async function init() {
     var cfgRes = await ns.api.sendMessage({ type: MSG.GET_CONFIG });
     if (!cfgRes || !cfgRes.ok) {
-      setGlobalBadge('Erreur', 'blocked');
+      setGlobalBadge('Error', 'blocked');
       return;
     }
 
@@ -336,11 +320,11 @@
     applySettingsToForm(settings);
 
     if (!settings.seerrUrl) {
-      setGlobalBadge('Non configuré', 'pending');
+      setGlobalBadge('Not configured', 'pending');
       return;
     }
 
-    setGlobalBadge('Vérification…', 'processing');
+    setGlobalBadge('Checking…', 'processing');
     await runSeerrDiagnostic(null, settings);
   }
 
@@ -363,13 +347,13 @@
   toggleSeerrKeyBtn.addEventListener('click', function () {
     var isHidden = seerrApiKeyInput.type === 'password';
     seerrApiKeyInput.type = isHidden ? 'text' : 'password';
-    toggleSeerrKeyBtn.textContent = isHidden ? 'Cacher' : 'Voir';
+    toggleSeerrKeyBtn.textContent = isHidden ? 'Hide' : 'Show';
   });
 
   toggleJfKeyBtn.addEventListener('click', function () {
     var isHidden = jellyfinApiKeyInput.type === 'password';
     jellyfinApiKeyInput.type = isHidden ? 'text' : 'password';
-    toggleJfKeyBtn.textContent = isHidden ? 'Cacher' : 'Voir';
+    toggleJfKeyBtn.textContent = isHidden ? 'Hide' : 'Show';
   });
 
   defaultRadarrServerSelect.addEventListener('change', function () {
@@ -388,34 +372,34 @@
     hideBox(seerrDiagBox);
     var origins = collectOriginsFromInputs();
     if (!ns.utils.buildOriginPattern(seerrUrlInput.value.trim())) {
-      showBox(seerrDiagBox, 'Veuillez saisir une URL Seerr valide.', 'err');
+      showBox(seerrDiagBox, 'Enter a valid Seerr URL.', 'err');
       return;
     }
 
     testSeerrBtn.disabled = true;
-    testSeerrBtn.textContent = 'Test en cours…';
+    testSeerrBtn.textContent = 'Testing…';
 
     try {
-      // CRITIQUE Firefox : permissionsRequest doit être le tout premier await du clic
+      // CRITICAL Firefox: permissionsRequest must be the very first await of the click
       var granted = await ns.api.permissionsRequest(origins);
       if (!granted) {
-        showBox(seerrDiagBox, 'Permission réseau refusée par le navigateur.', 'warn');
+        showBox(seerrDiagBox, 'Network permission denied by the browser.', 'warn');
         return;
       }
       var draft = collectFormSettings();
       await runSeerrDiagnostic(draft, draft);
     } catch (err) {
-      showBox(seerrDiagBox, (err && err.message) || 'Erreur inattendue.', 'err');
+      showBox(seerrDiagBox, (err && err.message) || 'Unexpected error.', 'err');
     } finally {
       testSeerrBtn.disabled = false;
-      testSeerrBtn.textContent = 'Tester la connexion';
+      testSeerrBtn.textContent = 'Test connection';
     }
   });
 
   loadUsersBtn.addEventListener('click', async function () {
     var origins = collectOriginsFromInputs();
     if (!ns.utils.buildOriginPattern(seerrUrlInput.value.trim())) {
-      showBox(seerrDiagBox, 'Veuillez d’abord saisir l’URL Seerr.', 'err');
+      showBox(seerrDiagBox, 'Enter the Seerr URL first.', 'err');
       return;
     }
 
@@ -423,7 +407,7 @@
     try {
       var granted = await ns.api.permissionsRequest(origins);
       if (!granted) {
-        showBox(seerrDiagBox, 'Permission réseau refusée.', 'warn');
+        showBox(seerrDiagBox, 'Network permission denied.', 'warn');
         return;
       }
 
@@ -435,9 +419,9 @@
 
       if (res && res.ok) {
         populateUsers(res.users, draft.seerrUserId);
-        showBox(seerrDiagBox, res.users.length + ' utilisateur(s) Seerr chargé(s).', 'ok');
+        showBox(seerrDiagBox, 'Loaded ' + res.users.length + ' Seerr user(s).', 'ok');
       } else {
-        showBox(seerrDiagBox, (res && res.error) || 'Impossible de charger les utilisateurs.', 'err');
+        showBox(seerrDiagBox, (res && res.error) || 'Could not load users.', 'err');
       }
     } finally {
       loadUsersBtn.disabled = false;
@@ -448,14 +432,14 @@
     var rawSeerr = seerrUrlInput.value.trim();
     var pSeerr = ns.utils.buildOriginPattern(rawSeerr);
     if (!pSeerr) {
-      showBox(seerrDiagBox, 'Veuillez saisir une URL Seerr valide.', 'err');
+      showBox(seerrDiagBox, 'Enter a valid Seerr URL.', 'err');
       return;
     }
 
     var username = jfLoginUserInput.value.trim();
     var password = jfLoginPassInput.value;
     if (!username) {
-      showBox(seerrDiagBox, 'Saisissez votre nom d’utilisateur Jellyfin.', 'err');
+      showBox(seerrDiagBox, 'Enter your Jellyfin username.', 'err');
       return;
     }
 
@@ -463,7 +447,7 @@
     try {
       var granted = await ns.api.permissionsRequest([pSeerr]);
       if (!granted) {
-        showBox(seerrDiagBox, 'Permission réseau refusée.', 'warn');
+        showBox(seerrDiagBox, 'Network permission denied.', 'warn');
         return;
       }
 
@@ -475,10 +459,10 @@
 
       if (res && res.ok) {
         var who = (res.user && res.user.displayName) || username;
-        showBox(seerrDiagBox, 'Session Seerr ouverte pour ' + who + ' !', 'ok');
+        showBox(seerrDiagBox, 'Seerr session opened for ' + who + '!', 'ok');
         await runSeerrDiagnostic(collectFormSettings(), collectFormSettings());
       } else {
-        showBox(seerrDiagBox, (res && res.error) || 'Échec de connexion Jellyfin sur Seerr.', 'err');
+        showBox(seerrDiagBox, (res && res.error) || 'Jellyfin login on Seerr failed.', 'err');
       }
     } finally {
       seerrJfLoginBtn.disabled = false;
@@ -490,17 +474,17 @@
     var rawJf = jellyfinUrlInput.value.trim();
     var pJf = ns.utils.buildOriginPattern(rawJf);
     if (!pJf) {
-      showBox(jellyfinDiagBox, 'Veuillez saisir une URL Jellyfin valide.', 'err');
+      showBox(jellyfinDiagBox, 'Enter a valid Jellyfin URL.', 'err');
       return;
     }
 
     testJellyfinBtn.disabled = true;
-    testJellyfinBtn.textContent = 'Test en cours…';
+    testJellyfinBtn.textContent = 'Testing…';
 
     try {
       var granted = await ns.api.permissionsRequest([pJf]);
       if (!granted) {
-        showBox(jellyfinDiagBox, 'Permission réseau refusée pour Jellyfin.', 'warn');
+        showBox(jellyfinDiagBox, 'Network permission denied for Jellyfin.', 'warn');
         return;
       }
 
@@ -515,25 +499,25 @@
       if (res && res.ok) {
         showBox(
           jellyfinDiagBox,
-          'Jellyfin connecté : ' +
+          'Jellyfin connected: ' +
             res.serverName +
             (res.version ? ' (v' + res.version + ')' : '') +
-            (res.authenticated ? ' — Clé API valide' : ' — Info publique OK'),
+            (res.authenticated ? ' — API key valid' : ' — Public info OK'),
           'ok'
         );
       } else {
-        showBox(jellyfinDiagBox, (res && res.error) || 'Impossible de joindre Jellyfin.', 'err');
+        showBox(jellyfinDiagBox, (res && res.error) || 'Could not reach Jellyfin.', 'err');
       }
     } finally {
       testJellyfinBtn.disabled = false;
-      testJellyfinBtn.textContent = 'Tester Jellyfin';
+      testJellyfinBtn.textContent = 'Test Jellyfin';
     }
   });
 
   refreshServicesBtn.addEventListener('click', async function () {
     var origins = collectOriginsFromInputs();
     if (!ns.utils.buildOriginPattern(seerrUrlInput.value.trim())) {
-      showBox(globalFeedback, 'Configurez d’abord l’URL Seerr.', 'err');
+      showBox(globalFeedback, 'Set the Seerr URL first.', 'err');
       return;
     }
 
@@ -541,7 +525,7 @@
     try {
       var granted = await ns.api.permissionsRequest(origins);
       if (!granted) {
-        showBox(globalFeedback, 'Permission réseau refusée.', 'warn');
+        showBox(globalFeedback, 'Network permission denied.', 'warn');
         return;
       }
 
@@ -560,11 +544,11 @@
         );
         showBox(
           globalFeedback,
-          res.services.servers.length + ' serveur(s) Radarr et leurs profils actualisés.',
+          'Refreshed ' + res.services.servers.length + ' Radarr server(s) and their profiles.',
           'ok'
         );
       } else {
-        showBox(globalFeedback, (res && res.error) || 'Impossible d’actualiser les profils.', 'err');
+        showBox(globalFeedback, (res && res.error) || 'Could not refresh the profiles.', 'err');
       }
     } finally {
       refreshServicesBtn.disabled = false;
@@ -577,13 +561,13 @@
 
     var origins = collectOriginsFromInputs();
     saveAllBtn.disabled = true;
-    saveAllLabel.textContent = 'Enregistrement…';
+    saveAllLabel.textContent = 'Saving…';
 
     try {
       if (origins.length > 0) {
         var granted = await ns.api.permissionsRequest(origins);
         if (!granted) {
-          showBox(globalFeedback, 'Permission réseau refusée pour les serveurs saisis.', 'warn');
+          showBox(globalFeedback, 'Network permission denied for the entered servers.', 'warn');
           return;
         }
       }
@@ -595,42 +579,42 @@
       });
 
       if (!saveRes || !saveRes.ok) {
-        showBox(globalFeedback, (saveRes && saveRes.error) || 'Erreur lors de la sauvegarde.', 'err');
+        showBox(globalFeedback, (saveRes && saveRes.error) || 'Error while saving.', 'err');
         return;
       }
 
-      showBox(globalFeedback, 'Paramètres enregistrés avec succès.', 'ok');
+      showBox(globalFeedback, 'Settings saved.', 'ok');
       if (saveRes.settings && saveRes.settings.seerrUrl) {
         await runSeerrDiagnostic(null, saveRes.settings);
       } else {
-        setGlobalBadge('Non configuré', 'pending');
+        setGlobalBadge('Not configured', 'pending');
       }
     } catch (err) {
-      showBox(globalFeedback, (err && err.message) || 'Erreur inattendue.', 'err');
+      showBox(globalFeedback, (err && err.message) || 'Unexpected error.', 'err');
     } finally {
       saveAllBtn.disabled = false;
-      saveAllLabel.textContent = 'Enregistrer tous les paramètres';
+      saveAllLabel.textContent = 'Save settings';
     }
   });
 
   clearCacheBtn.addEventListener('click', async function () {
     var res = await ns.api.sendMessage({ type: MSG.CLEAR_CACHE });
     if (res && res.ok) {
-      showBox(globalFeedback, 'Cache des serveurs et profils vidé.', 'ok');
+      showBox(globalFeedback, 'Server and profile cache cleared.', 'ok');
     }
   });
 
   resetBtn.addEventListener('click', async function () {
     if (!resetArmed) {
       resetArmed = true;
-      resetBtn.textContent = 'Confirmer la réinitialisation ?';
+      resetBtn.textContent = 'Confirm reset?';
       resetBtn.classList.add('lbx-btn-danger-armed');
       if (resetTimer) {
         clearTimeout(resetTimer);
       }
       resetTimer = setTimeout(function () {
         resetArmed = false;
-        resetBtn.textContent = 'Réinitialiser';
+        resetBtn.textContent = 'Reset';
         resetBtn.classList.remove('lbx-btn-danger-armed');
       }, 4500);
       return;
@@ -640,7 +624,7 @@
     if (resetTimer) {
       clearTimeout(resetTimer);
     }
-    resetBtn.textContent = 'Réinitialiser';
+    resetBtn.textContent = 'Reset';
     resetBtn.classList.remove('lbx-btn-danger-armed');
 
     var res = await ns.api.sendMessage({ type: MSG.RESET_SETTINGS });
@@ -650,8 +634,8 @@
       populateUsers([], null);
       hideBox(seerrDiagBox);
       hideBox(jellyfinDiagBox);
-      setGlobalBadge('Non configuré', 'pending');
-      showBox(globalFeedback, 'Paramètres réinitialisés.', 'ok');
+      setGlobalBadge('Not configured', 'pending');
+      showBox(globalFeedback, 'Settings reset.', 'ok');
     }
   });
 

@@ -8,7 +8,6 @@
   var connBadgeText = document.getElementById('connBadgeText');
   var openSeerrLink = document.getElementById('openSeerrLink');
   var quickForm = document.getElementById('quickForm');
-  var quickBeam = document.getElementById('quickBeam');
   var seerrUrlInput = document.getElementById('seerrUrl');
   var authModeSegmented = document.getElementById('authModeSegmented');
   var apiKeyField = document.getElementById('apiKeyField');
@@ -29,23 +28,9 @@
   var selectedAuthMode = 'apiKey';
   var radarrServers = [];
 
-  ns.ui.attachMagicCard(quickForm);
-  ns.ui.attachMagicCard(defaultsCard);
-
   function setBadge(text, tone) {
     connBadgeText.textContent = text;
-    connBadge.className = 'lbx-status-plate lbx-tone-' + (tone || 'unknown');
-    if (quickBeam) {
-      var beamTone =
-        tone === 'available'
-          ? 'available'
-          : tone === 'pending'
-            ? 'pending'
-            : tone === 'blocked'
-              ? 'blocked'
-              : 'default';
-      quickBeam.setAttribute('data-beam-tone', beamTone);
-    }
+    connBadge.className = 'lbx-status lbx-tone-' + (tone || 'unknown');
   }
 
   function showFeedback(text, isError) {
@@ -88,7 +73,7 @@
     if (!server || !Array.isArray(server.profiles) || server.profiles.length === 0) {
       var emptyOpt = document.createElement('option');
       emptyOpt.value = '';
-      emptyOpt.textContent = 'Aucun profil disponible';
+      emptyOpt.textContent = 'No profile available';
       defaultProfileSelect.appendChild(emptyOpt);
       defaultProfileSelect.disabled = true;
       return;
@@ -151,9 +136,9 @@
     }, 0);
     profilesHint.textContent =
       servers.length +
-      ' serveur(s) Radarr · ' +
+      ' Radarr server(s) · ' +
       totalProfiles +
-      ' profil(s) de qualité détecté(s).';
+      ' quality profile(s) detected.';
   }
 
   async function saveDefaultSelection() {
@@ -175,7 +160,7 @@
   async function loadInitialState() {
     var res = await ns.api.sendMessage({ type: MSG.GET_CONFIG });
     if (!res || !res.ok) {
-      setBadge('Erreur', 'blocked');
+      setBadge('Error', 'blocked');
       return;
     }
 
@@ -187,20 +172,20 @@
     updateHeaderLinks(currentSettings.seerrUrl);
 
     if (!currentSettings.seerrUrl) {
-      setBadge('Non configuré', 'pending');
+      setBadge('Not configured', 'pending');
       return;
     }
 
-    setBadge('Vérification…', 'processing');
+    setBadge('Checking…', 'processing');
     var testRes = await ns.api.sendMessage({ type: MSG.TEST_SEERR_CONNECTION });
     if (testRes && testRes.ok) {
-      var who = (testRes.user && testRes.user.displayName) || 'Connecté';
-      setBadge('Connecté · ' + who, 'available');
+      var who = (testRes.user && testRes.user.displayName) || 'Connected';
+      setBadge('Connected · ' + who, 'available');
       renderRadarrDefaults(testRes.radarr);
     } else if (testRes && testRes.permissionMissing) {
-      setBadge('Permission requise', 'pending');
+      setBadge('Permission required', 'pending');
     } else {
-      setBadge('Hors ligne / Erreur', 'blocked');
+      setBadge('Offline / Error', 'blocked');
     }
   }
 
@@ -232,24 +217,24 @@
     }
 
     if (!seerrPattern) {
-      showFeedback('Veuillez saisir une URL Seerr valide (ex : http://192.168.1.10:5055).', true);
+      showFeedback('Enter a valid Seerr URL (e.g. http://192.168.1.10:5055).', true);
       return;
     }
 
     if (authMode === 'apiKey' && !apiKey) {
-      showFeedback('Veuillez saisir la clé API Seerr.', true);
+      showFeedback('Enter the Seerr API key.', true);
       return;
     }
 
     saveTestBtn.disabled = true;
-    saveTestLabel.textContent = 'Connexion en cours…';
+    saveTestLabel.textContent = 'Connecting…';
 
     try {
-      // CRITIQUE Firefox : permissionsRequest doit être le tout premier await du clic utilisateur
+      // CRITICAL Firefox: permissionsRequest must be the very first await of the user click
       var granted = await ns.api.permissionsRequest(origins);
       if (!granted) {
-        setBadge('Permission refusée', 'pending');
-        showFeedback('Permission réseau refusée par le navigateur.', true);
+        setBadge('Permission denied', 'pending');
+        showFeedback('Network permission denied by the browser.', true);
         return;
       }
 
@@ -264,7 +249,7 @@
       });
 
       if (!saveRes || !saveRes.ok) {
-        showFeedback((saveRes && saveRes.error) || 'Erreur de sauvegarde.', true);
+        showFeedback((saveRes && saveRes.error) || 'Save error.', true);
         return;
       }
 
@@ -275,29 +260,29 @@
       if (testRes && testRes.ok) {
         var who = (testRes.user && testRes.user.displayName) || 'OK';
         var ver = (testRes.status && testRes.status.version) || '';
-        setBadge('Connecté · ' + who, 'available');
+        setBadge('Connected · ' + who, 'available');
         showFeedback(
-          'Connexion réussie' + (ver ? ' (Seerr v' + ver + ')' : '') + ' !',
+          'Connection successful' + (ver ? ' (Seerr v' + ver + ')' : '') + '!',
           false
         );
         renderRadarrDefaults(testRes.radarr);
       } else {
-        setBadge('Erreur de connexion', 'blocked');
-        showFeedback((testRes && testRes.error) || 'Impossible de joindre Seerr.', true);
+        setBadge('Connection error', 'blocked');
+        showFeedback((testRes && testRes.error) || 'Could not reach Seerr.', true);
       }
     } catch (err) {
-      setBadge('Erreur', 'blocked');
-      showFeedback((err && err.message) || 'Erreur inattendue.', true);
+      setBadge('Error', 'blocked');
+      showFeedback((err && err.message) || 'Unexpected error.', true);
     } finally {
       saveTestBtn.disabled = false;
-      saveTestLabel.textContent = 'Tester & Enregistrer';
+      saveTestLabel.textContent = 'Test & save';
     }
   });
 
   toggleApiKeyBtn.addEventListener('click', function () {
     var hidden = seerrApiKeyInput.type === 'password';
     seerrApiKeyInput.type = hidden ? 'text' : 'password';
-    toggleApiKeyBtn.textContent = hidden ? 'Cacher' : 'Voir';
+    toggleApiKeyBtn.textContent = hidden ? 'Hide' : 'Show';
   });
 
   defaultServerSelect.addEventListener('change', function () {

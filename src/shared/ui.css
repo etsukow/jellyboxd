@@ -1,0 +1,321 @@
+/* Shared controls for the options page and the toolbar popup.
+   Flat surfaces in Letterboxd's palette: green for the main action, blue for focus.
+   Scoped to .lbx-scope so the same names never leak into other pages. */
+
+.lbx-scope {
+  --lbx-bg: #14181c;
+  --lbx-surface: #1c2228;
+  --lbx-surface-raised: #242c34;
+  --lbx-line: #2c3440;
+  --lbx-line-strong: #3d4a57;
+  --lbx-ink: #e4eaf0;
+  --lbx-ink-strong: #ffffff;
+  --lbx-muted: #99aabb;
+  --lbx-dim: #6f8193;
+  --lbx-green: #00e054;
+  --lbx-green-ink: #04220f;
+  --lbx-orange: #ff8000;
+  --lbx-blue: #40bcf4;
+  --lbx-yellow: #facc15;
+  --lbx-danger: #ff6b5e;
+  --lbx-radius: 8px;
+  --lbx-radius-control: 5px;
+  --lbx-in: 150ms;
+  --lbx-out: 120ms;
+  --lbx-press: 90ms;
+  --lbx-ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  color-scheme: dark;
+  background: var(--lbx-bg);
+  color: var(--lbx-ink);
+}
+
+/* Cards */
+.lbx-scope .card {
+  border: 1px solid var(--lbx-line);
+  border-radius: var(--lbx-radius);
+  background: var(--lbx-surface);
+}
+
+/* Buttons: one filled style for the main action, one outline style for the rest. */
+.lbx-scope .lbx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--lbx-line-strong);
+  border-radius: var(--lbx-radius-control);
+  background: transparent;
+  color: var(--lbx-ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--lbx-out) var(--lbx-ease),
+    background-color var(--lbx-out) var(--lbx-ease),
+    border-color var(--lbx-out) var(--lbx-ease),
+    color var(--lbx-out) var(--lbx-ease);
+}
+
+.lbx-scope .lbx-btn:hover:not(:disabled) {
+  border-color: var(--lbx-muted);
+  background: rgba(221, 238, 255, 0.05);
+  transition-duration: var(--lbx-in);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lbx-scope .lbx-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+.lbx-scope .lbx-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+  transition-duration: var(--lbx-press);
+}
+
+.lbx-scope .lbx-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lbx-scope .lbx-btn-primary {
+  border-color: var(--lbx-green);
+  background: var(--lbx-green);
+  color: var(--lbx-green-ink);
+}
+
+.lbx-scope .lbx-btn-primary:hover:not(:disabled) {
+  border-color: #33e676;
+  background: #33e676;
+}
+
+.lbx-scope .lbx-btn-full {
+  width: 100%;
+}
+
+.lbx-scope .lbx-btn-danger {
+  border-color: rgba(255, 107, 94, 0.45);
+  color: #ffb4ab;
+}
+
+.lbx-scope .lbx-btn-danger:hover:not(:disabled) {
+  border-color: var(--lbx-danger);
+  background: rgba(255, 107, 94, 0.08);
+}
+
+.lbx-scope .lbx-btn-danger-armed,
+.lbx-scope .lbx-btn-danger-armed:hover:not(:disabled) {
+  border-color: var(--lbx-danger);
+  background: var(--lbx-danger);
+  color: #2a0603;
+}
+
+.lbx-scope .lbx-btn:focus-visible,
+.lbx-scope .lbx-input:focus-visible,
+.lbx-scope .lbx-select:focus-visible,
+.lbx-scope .lbx-seg-btn:focus-visible,
+.lbx-scope a:focus-visible {
+  outline: 2px solid var(--lbx-blue);
+  outline-offset: 2px;
+}
+
+/* Text inputs and selects */
+.lbx-scope .lbx-input,
+.lbx-scope .lbx-select {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--lbx-line-strong);
+  border-radius: var(--lbx-radius-control);
+  background: var(--lbx-bg);
+  color: var(--lbx-ink);
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color var(--lbx-in) var(--lbx-ease);
+}
+
+.lbx-scope .lbx-input::placeholder {
+  color: var(--lbx-dim);
+}
+
+.lbx-scope .lbx-input:hover,
+.lbx-scope .lbx-select:hover {
+  border-color: var(--lbx-muted);
+}
+
+.lbx-scope .lbx-select-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.lbx-scope .lbx-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px;
+  cursor: pointer;
+}
+
+.lbx-scope .lbx-select option {
+  background: var(--lbx-surface);
+  color: var(--lbx-ink);
+}
+
+.lbx-scope .lbx-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  width: 14px;
+  height: 14px;
+  color: var(--lbx-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Segmented control */
+.lbx-scope .lbx-segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--lbx-line-strong);
+  border-radius: var(--lbx-radius-control);
+  background: var(--lbx-bg);
+}
+
+.lbx-scope .lbx-seg-btn {
+  flex: 1;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--lbx-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background-color var(--lbx-in) var(--lbx-ease), color var(--lbx-in) var(--lbx-ease);
+}
+
+.lbx-scope .lbx-seg-btn:hover:not(.lbx-seg-active) {
+  color: var(--lbx-ink);
+}
+
+.lbx-scope .lbx-seg-btn.lbx-seg-active {
+  background: var(--lbx-surface-raised);
+  color: var(--lbx-ink-strong);
+}
+
+/* Switch */
+.lbx-scope .lbx-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--lbx-ink);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lbx-scope .lbx-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+}
+
+.lbx-scope .lbx-switch-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lbx-scope .lbx-switch-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--lbx-line-strong);
+  border-radius: 999px;
+  background: var(--lbx-bg);
+  transition: background-color 180ms var(--lbx-ease), border-color 180ms var(--lbx-ease);
+}
+
+.lbx-scope .lbx-switch-thumb {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--lbx-muted);
+  transition: transform 180ms var(--lbx-ease), background-color 180ms var(--lbx-ease);
+}
+
+.lbx-scope .lbx-switch-input:checked + .lbx-switch-track {
+  border-color: var(--lbx-green);
+  background: var(--lbx-green);
+}
+
+.lbx-scope .lbx-switch-input:checked + .lbx-switch-track + .lbx-switch-thumb {
+  background: var(--lbx-green-ink);
+  transform: translateX(16px);
+}
+
+.lbx-scope .lbx-switch-input:focus-visible + .lbx-switch-track {
+  outline: 2px solid var(--lbx-blue);
+  outline-offset: 2px;
+}
+
+/* Connection status: a dot and a word. */
+.lbx-scope .lbx-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--lbx-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lbx-scope .lbx-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--lbx-tone, #5c6b7a);
+}
+
+.lbx-scope .lbx-tone-available { --lbx-tone: var(--lbx-green); }
+.lbx-scope .lbx-tone-processing { --lbx-tone: var(--lbx-blue); }
+.lbx-scope .lbx-tone-pending { --lbx-tone: var(--lbx-orange); }
+.lbx-scope .lbx-tone-partial { --lbx-tone: var(--lbx-yellow); }
+.lbx-scope .lbx-tone-blocked { --lbx-tone: var(--lbx-danger); }
+.lbx-scope .lbx-tone-unknown { --lbx-tone: #5c6b7a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lbx-scope *,
+  .lbx-scope *::before,
+  .lbx-scope *::after {
+    transition: none !important;
+  }
+  .lbx-scope .lbx-btn:hover:not(:disabled),
+  .lbx-scope .lbx-btn:active:not(:disabled) {
+    transform: none;
+  }
+}

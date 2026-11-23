@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Paramètres — Letterboxd × Seerr / Jellyfin</title>
-  <link rel="stylesheet" href="../shared/design-tokens.css" />
+  <title>Jellyboxd settings</title>
+  <link rel="stylesheet" href="../shared/ui.css" />
   <link rel="stylesheet" href="options.css" />
 </head>
 <body class="lbx-scope">
@@ -13,88 +13,82 @@
       <div class="brand">
         <img src="../../icons/icon-48.png" alt="" class="brand-logo" />
         <div>
-          <h1>Letterboxd × Seerr / Jellyfin</h1>
-          <p class="subtitle">Connectez votre serveur Seerr (Jellyseerr / Overseerr) et votre serveur Jellyfin à Letterboxd.</p>
+          <h1>Jellyboxd</h1>
+          <p class="subtitle">Connect your Seerr server (Jellyseerr, Overseerr) and your Jellyfin server to Letterboxd.</p>
         </div>
       </div>
-      <div id="globalStatusBadge" class="lbx-status-plate lbx-tone-unknown" role="status">
-        <span class="lbx-led-well" aria-hidden="true"><span class="lbx-led-dot"></span></span>
-        <span id="globalStatusText">Chargement…</span>
+      <div id="globalStatusBadge" class="lbx-status lbx-tone-unknown" role="status">
+        <span id="globalStatusText">Loading…</span>
       </div>
     </header>
 
     <form id="optionsForm" class="sections">
-      <!-- 1. Seerr -->
-      <section id="seerrCard" class="lbx-magic-card card">
-        <div id="seerrBeam" class="lbx-border-beam" data-beam-tone="default" aria-hidden="true">
-          <div class="lbx-border-beam-light"></div>
-        </div>
-
-        <div class="lbx-card-layer card-inner">
+      <section id="seerrCard" class="card">
+        <div class="card-inner">
           <div class="card-head">
-            <h2>1. Serveur Seerr / Jellyseerr / Overseerr</h2>
-            <button id="testSeerrBtn" type="button" class="lbx-btn-tactile">Tester la connexion</button>
+            <h2>Seerr server</h2>
+            <button id="testSeerrBtn" type="button" class="lbx-btn">Test connection</button>
           </div>
 
           <div class="grid-2">
             <div class="field">
-              <label for="seerrUrl">URL du serveur Seerr</label>
-              <input id="seerrUrl" class="lbx-input" type="url" placeholder="https://seerr.mondomaine.fr ou http://192.168.1.10:5055" />
-              <span class="help">Incluez <code>http://</code> ou <code>https://</code> et le port si nécessaire.</span>
+              <label for="seerrUrl">Seerr URL</label>
+              <input id="seerrUrl" class="lbx-input" type="url" placeholder="https://seerr.example.com or http://192.168.1.10:5055" />
+              <span class="help">Include <code>http://</code> or <code>https://</code>, and the port if needed.</span>
             </div>
 
             <div class="field">
-              <span class="field-label">Mode d’authentification</span>
-              <div id="authModeSegmented" class="lbx-segmented" role="group" aria-label="Mode d’authentification">
-                <button type="button" class="lbx-seg-btn lbx-seg-active" data-auth="apiKey" aria-pressed="true">Clé API (recommandé)</button>
-                <button type="button" class="lbx-seg-btn" data-auth="cookie" aria-pressed="false">Session Cookie</button>
+              <span class="field-label">Sign-in method</span>
+              <div id="authModeSegmented" class="lbx-segmented" role="group" aria-label="Sign-in method">
+                <button type="button" class="lbx-seg-btn lbx-seg-active" data-auth="apiKey" aria-pressed="true">API key (recommended)</button>
+                <button type="button" class="lbx-seg-btn" data-auth="cookie" aria-pressed="false">Browser session</button>
               </div>
-              <span class="help">La clé API évite les expirations de session.</span>
+              <span class="help">An API key never expires, unlike a session.</span>
             </div>
           </div>
 
           <div id="apiKeySection" class="grid-2">
             <div class="field">
-              <label for="seerrApiKey">Clé API Seerr</label>
+              <label for="seerrApiKey">Seerr API key</label>
               <div class="input-with-btn">
-                <input id="seerrApiKey" class="lbx-input" type="password" placeholder="Paramètres Seerr → Général → Clé API" autocomplete="off" />
-                <button id="toggleSeerrKey" type="button" class="lbx-btn-tactile btn-ghost-pad">Voir</button>
+                <input id="seerrApiKey" class="lbx-input" type="password" placeholder="Seerr → Settings → General → API Key" autocomplete="off" />
+                <button id="toggleSeerrKey" type="button" class="lbx-btn">Show</button>
               </div>
-              <span class="help">Trouvable dans Seerr sous <strong>Paramètres → Général → Clé API</strong>.</span>
+              <span class="help">Found in Seerr under <strong>Settings → General → API Key</strong>.</span>
             </div>
 
             <div class="field">
-              <label for="seerrUserId">Demander au nom de l’utilisateur (optionnel)</label>
+              <label for="seerrUserId">Request on behalf of (optional)</label>
               <div class="input-with-btn">
                 <div class="lbx-select-wrap">
-                  <select id="seerrUserId" class="lbx-select">
-                    <option value="">Compte par défaut (admin clé API)</option>
-                  </select>
-                  <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="m7 15 5 5 5-5"></path>
-                    <path d="m7 9 5-5 5 5"></path>
-                  </svg>
-                </div>
-                <button id="loadUsersBtn" type="button" class="lbx-btn-tactile btn-ghost-pad">Charger</button>
+                <select id="seerrUserId" class="lbx-select">
+                  <option value="">API key owner (default)</option>
+                </select>
+                <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m7 15 5 5 5-5"></path>
+                  <path d="m7 9 5-5 5 5"></path>
+                </svg>
               </div>
-              <span class="help">Utile pour attribuer les demandes à un utilisateur précis.</span>
+                <button id="loadUsersBtn" type="button" class="lbx-btn">Load users</button>
+              </div>
+              <span class="help">Credits requests to a specific Seerr user.</span>
             </div>
           </div>
 
           <div id="cookieSection" class="subcard hidden">
-            <h3>Connexion à Seerr avec un compte Jellyfin</h3>
-            <p class="help">En mode Cookie, connectez-vous une fois pour enregistrer le cookie de session Seerr. Vos identifiants ne sont jamais sauvegardés.</p>
+            <h3>Sign in to Seerr with a Jellyfin account</h3>
+            <p class="help">Sign in once to store the Seerr session cookie. Your username and password are never saved.</p>
             <div class="grid-3">
               <div class="field">
-                <label for="jfLoginUser">Utilisateur Jellyfin</label>
-                <input id="jfLoginUser" class="lbx-input" type="text" autocomplete="username" placeholder="Nom d'utilisateur" />
+                <label for="jfLoginUser">Jellyfin username</label>
+                <input id="jfLoginUser" class="lbx-input" type="text" autocomplete="username" placeholder="Username" />
               </div>
               <div class="field">
-                <label for="jfLoginPass">Mot de passe</label>
-                <input id="jfLoginPass" class="lbx-input" type="password" autocomplete="current-password" placeholder="Mot de passe" />
+                <label for="jfLoginPass">Password</label>
+                <input id="jfLoginPass" class="lbx-input" type="password" autocomplete="current-password" placeholder="Password" />
               </div>
               <div class="field field-end">
-                <button id="seerrJfLoginBtn" type="button" class="lbx-btn-tactile">Se connecter via Jellyfin</button>
+                <button id="seerrJfLoginBtn" type="button" class="lbx-btn">Sign in with Jellyfin</button>
               </div>
             </div>
           </div>
@@ -103,27 +97,26 @@
         </div>
       </section>
 
-      <!-- 2. Jellyfin -->
-      <section class="lbx-magic-card card">
-        <div class="lbx-card-layer card-inner">
+      <section class="card">
+        <div class="card-inner">
           <div class="card-head">
-            <h2>2. Serveur Jellyfin (optionnel)</h2>
-            <button id="testJellyfinBtn" type="button" class="lbx-btn-tactile">Tester Jellyfin</button>
+            <h2>Jellyfin server <span class="optional">optional</span></h2>
+            <button id="testJellyfinBtn" type="button" class="lbx-btn">Test Jellyfin</button>
           </div>
           <p class="help">
-            Permet d’utiliser votre URL Jellyfin publique pour le bouton <em>« Regarder sur Jellyfin »</em> (au lieu de l’URL interne renvoyée par Seerr) et d’activer la recherche directe dans votre bibliothèque si une clé API Jellyfin est fournie.
+            Uses your public Jellyfin URL for the <em>Watch on Jellyfin</em> link instead of the internal address Seerr returns. With an API key, films are also looked up directly in your library.
           </p>
 
           <div class="grid-2">
             <div class="field">
-              <label for="jellyfinUrl">URL publique Jellyfin</label>
-              <input id="jellyfinUrl" class="lbx-input" type="url" placeholder="https://jellyfin.mondomaine.fr ou http://192.168.1.10:8096" />
+              <label for="jellyfinUrl">Public Jellyfin URL</label>
+              <input id="jellyfinUrl" class="lbx-input" type="url" placeholder="https://jellyfin.example.com or http://192.168.1.10:8096" />
             </div>
             <div class="field">
-              <label for="jellyfinApiKey">Clé API Jellyfin (optionnel)</label>
+              <label for="jellyfinApiKey">Jellyfin API key (optional)</label>
               <div class="input-with-btn">
-                <input id="jellyfinApiKey" class="lbx-input" type="password" placeholder="Tableau de bord → Clés API" autocomplete="off" />
-                <button id="toggleJfKey" type="button" class="lbx-btn-tactile btn-ghost-pad">Voir</button>
+                <input id="jellyfinApiKey" class="lbx-input" type="password" placeholder="Dashboard → API Keys" autocomplete="off" />
+                <button id="toggleJfKey" type="button" class="lbx-btn">Show</button>
               </div>
             </div>
           </div>
@@ -132,38 +125,36 @@
         </div>
       </section>
 
-      <!-- Apparence -->
-      <section class="lbx-magic-card card">
-        <div class="lbx-card-layer card-inner">
+      <section class="card">
+        <div class="card-inner">
           <div class="card-head">
-            <h2>Apparence du composant</h2>
+            <h2>Widget</h2>
           </div>
 
           <div class="field">
-            <span class="field-label">Style du composant</span>
-            <div id="widgetStyleSegmented" class="lbx-segmented" role="group" aria-label="Style du composant">
-              <button type="button" class="lbx-seg-btn lbx-seg-active" data-widget="native" aria-pressed="true">Natif</button>
-              <button type="button" class="lbx-seg-btn" data-widget="ticket" aria-pressed="false">Billet</button>
+            <span class="field-label">Widget style</span>
+            <div id="widgetStyleSegmented" class="lbx-segmented lbx-segmented-narrow" role="group" aria-label="Widget style">
+              <button type="button" class="lbx-seg-btn lbx-seg-active" data-widget="native" aria-pressed="true">Native</button>
+              <button type="button" class="lbx-seg-btn" data-widget="ticket" aria-pressed="false">Ticket</button>
             </div>
-            <p id="widgetStyleHelp" class="help">Le composant prolonge le panneau d’actions de Letterboxd : mêmes couleurs, mêmes lignes.</p>
+            <p id="widgetStyleHelp" class="help">Extends Letterboxd’s actions panel: same colours, same rows.</p>
           </div>
         </div>
       </section>
 
-      <!-- 3. Profils de qualité & préférences -->
-      <section class="lbx-magic-card card">
-        <div class="lbx-card-layer card-inner">
+      <section class="card">
+        <div class="card-inner">
           <div class="card-head">
-            <h2>3. Profils de qualité et préférences de demande</h2>
-            <button id="refreshServicesBtn" type="button" class="lbx-btn-tactile">Actualiser les profils</button>
+            <h2>Request defaults</h2>
+            <button id="refreshServicesBtn" type="button" class="lbx-btn">Refresh profiles</button>
           </div>
 
           <div class="grid-3">
             <div class="field">
-              <label for="defaultRadarrServerId">Serveur Radarr par défaut</label>
+              <label for="defaultRadarrServerId">Default Radarr server</label>
               <div class="lbx-select-wrap">
                 <select id="defaultRadarrServerId" class="lbx-select">
-                  <option value="">Sélection automatique</option>
+                  <option value="">Pick automatically</option>
                 </select>
                 <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m7 15 5 5 5-5"></path>
@@ -173,10 +164,10 @@
             </div>
 
             <div class="field">
-              <label for="defaultRadarrProfileId">Profil de qualité par défaut</label>
+              <label for="defaultRadarrProfileId">Default quality profile</label>
               <div class="lbx-select-wrap">
                 <select id="defaultRadarrProfileId" class="lbx-select">
-                  <option value="">Profil par défaut du serveur</option>
+                  <option value="">Server default</option>
                 </select>
                 <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m7 15 5 5 5-5"></path>
@@ -186,10 +177,10 @@
             </div>
 
             <div class="field">
-              <label for="defaultRadarrRootFolder">Dossier racine par défaut</label>
+              <label for="defaultRadarrRootFolder">Default root folder</label>
               <div class="lbx-select-wrap">
                 <select id="defaultRadarrRootFolder" class="lbx-select">
-                  <option value="">Dossier par défaut du serveur</option>
+                  <option value="">Server default</option>
                 </select>
                 <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m7 15 5 5 5-5"></path>
@@ -206,7 +197,7 @@
                 <span class="lbx-switch-track" aria-hidden="true"></span>
                 <span class="lbx-switch-thumb" aria-hidden="true"></span>
               </span>
-              <span>Mémoriser le dernier serveur et profil de qualité utilisé sur Letterboxd</span>
+              <span>Remember the last server and quality profile used on Letterboxd</span>
             </label>
 
             <label class="lbx-switch-row">
@@ -215,7 +206,7 @@
                 <span class="lbx-switch-track" aria-hidden="true"></span>
                 <span class="lbx-switch-thumb" aria-hidden="true"></span>
               </span>
-              <span>Ouvrir automatiquement « Options avancées » (dossier racine, tags) sur les pages de films</span>
+              <span>Open “Advanced options” (root folder, tags) by default on film pages</span>
             </label>
 
             <label class="lbx-switch-row">
@@ -224,24 +215,20 @@
                 <span class="lbx-switch-track" aria-hidden="true"></span>
                 <span class="lbx-switch-thumb" aria-hidden="true"></span>
               </span>
-              <span>Activer la prise en charge des mini-séries / séries référencées sur Letterboxd (via Sonarr)</span>
+              <span>Support series and miniseries listed on Letterboxd (through Sonarr)</span>
             </label>
           </div>
         </div>
       </section>
 
-      <!-- Actions globales -->
       <section class="actions-bar">
         <div class="actions-left">
-          <button id="saveAllBtn" type="submit" class="lbx-shimmer-btn btn-save-all">
-            <span class="lbx-shimmer-spark" aria-hidden="true"><span class="lbx-shimmer-conic"></span></span>
-            <span class="lbx-shimmer-backdrop" aria-hidden="true"></span>
-            <span class="lbx-shimmer-highlight" aria-hidden="true"></span>
-            <span id="saveAllLabel" class="lbx-shimmer-content">Enregistrer tous les paramètres</span>
+          <button id="saveAllBtn" type="submit" class="lbx-btn lbx-btn-primary btn-save-all">
+            <span id="saveAllLabel">Save settings</span>
           </button>
-          <button id="clearCacheBtn" type="button" class="lbx-btn-tactile">Vider le cache des profils</button>
+          <button id="clearCacheBtn" type="button" class="lbx-btn">Clear profile cache</button>
         </div>
-        <button id="resetBtn" type="button" class="lbx-btn-tactile lbx-btn-danger">Réinitialiser</button>
+        <button id="resetBtn" type="button" class="lbx-btn lbx-btn-danger">Reset</button>
       </section>
 
       <div id="globalFeedback" class="diag-box hidden"></div>
@@ -250,7 +237,6 @@
 
   <script src="../shared/browser-api.js"></script>
   <script src="../shared/constants.js"></script>
-  <script src="../shared/ui-effects.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

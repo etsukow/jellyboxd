@@ -5,11 +5,8 @@
 body {
   margin: 0;
   width: 372px;
-  background:
-    radial-gradient(280px 180px at 95% -10%, rgba(99, 102, 241, 0.16), transparent 70%),
-    radial-gradient(240px 160px at 5% 0%, rgba(64, 188, 244, 0.10), transparent 70%),
-    #0f1318;
-  color: #e6edf3;
+  background: var(--lbx-bg);
+  color: var(--lbx-ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   line-height: 1.4;
@@ -40,7 +37,6 @@ body {
   width: 30px;
   height: 30px;
   border-radius: 7px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .brand-meta {
@@ -63,8 +59,9 @@ body {
   flex-shrink: 0;
 }
 
-.btn-mini {
-  padding: 5px 9px;
+.lbx-scope .btn-mini {
+  min-height: 26px;
+  padding: 0 9px;
   font-size: 11px;
 }
 
