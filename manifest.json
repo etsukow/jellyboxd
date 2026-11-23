@@ -24,11 +24,9 @@
       "js": [
         "src/shared/browser-api.js",
         "src/shared/constants.js",
-        "src/shared/ui-effects.js",
         "src/content/letterboxd.js"
       ],
       "css": [
-        "src/shared/design-tokens.css",
         "src/content/letterboxd.css"
       ],
       "run_at": "document_idle"

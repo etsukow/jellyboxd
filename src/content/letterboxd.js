@@ -2,7 +2,7 @@
   'use strict';
 
   var ns = global.LbxSeerr;
-  if (!ns || !ns.api || !ns.utils || !ns.ui) {
+  if (!ns || !ns.api || !ns.utils) {
     return;
   }
 
@@ -19,6 +19,8 @@
   var feedback = null; // { type: 'success'|'error', text: string }
   var confirmCancelId = null;
   var confirmTimer = null;
+  var widgetStyle = 'native'; // 'native' | 'ticket' (user setting "Style du composant")
+  var formOpen = false; // request form is folded when the film can already be watched
 
   var formSelection = {
     serverId: null,
@@ -27,6 +29,39 @@
     tags: [],
     allSeasons: true,
     seasons: []
+  };
+
+  // Status wording shown on the page (the tone comes from MEDIA_STATUS_META).
+  var STATUS_TEXT = {};
+  STATUS_TEXT[MEDIA_STATUS.UNKNOWN] = 'Non disponible';
+  STATUS_TEXT[MEDIA_STATUS.PENDING] = 'En attente';
+  STATUS_TEXT[MEDIA_STATUS.PROCESSING] = 'En téléchargement';
+  STATUS_TEXT[MEDIA_STATUS.PARTIAL] = 'Partiellement disponible';
+  STATUS_TEXT[MEDIA_STATUS.AVAILABLE] = 'Disponible';
+  STATUS_TEXT[MEDIA_STATUS.BLOCKLISTED] = 'Bloqué';
+  STATUS_TEXT[MEDIA_STATUS.DELETED] = 'Non disponible';
+
+  // Short wording for the ticket's "État" field.
+  var STATUS_SHORT = {};
+  STATUS_SHORT[MEDIA_STATUS.UNKNOWN] = 'Absent';
+  STATUS_SHORT[MEDIA_STATUS.PENDING] = 'En attente';
+  STATUS_SHORT[MEDIA_STATUS.PROCESSING] = 'En cours';
+  STATUS_SHORT[MEDIA_STATUS.PARTIAL] = 'Partiel';
+  STATUS_SHORT[MEDIA_STATUS.AVAILABLE] = 'Disponible';
+  STATUS_SHORT[MEDIA_STATUS.BLOCKLISTED] = 'Bloqué';
+  STATUS_SHORT[MEDIA_STATUS.DELETED] = 'Absent';
+
+  var ICONS = {
+    play: [{ tag: 'polygon', points: '6 4 20 12 6 20 6 4', fill: 'currentColor', stroke: 'none' }],
+    plus: [
+      { tag: 'line', x1: '12', y1: '5', x2: '12', y2: '19' },
+      { tag: 'line', x1: '5', y1: '12', x2: '19', y2: '12' }
+    ],
+    ext: [
+      { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' },
+      { tag: 'polyline', points: '15 3 21 3 21 9' },
+      { tag: 'line', x1: '10', y1: '14', x2: '21', y2: '3' }
+    ]
   };
 
   function el(tag, className, text) {
@@ -61,41 +96,25 @@
     return svg;
   }
 
-  function brandSvg() {
-    var svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('class', 'lbx-seerr-brand-icon');
-    svg.setAttribute('aria-hidden', 'true');
+  function icon(name) {
+    return svgIcon(ICONS[name]);
+  }
 
-    var dots = [
-      { cx: '5.5', cy: '6', r: '2.3', fill: '#ff8000' },
-      { cx: '12', cy: '6', r: '2.3', fill: '#00e054' },
-      { cx: '18.5', cy: '6', r: '2.3', fill: '#40bcf4' }
-    ];
-    dots.forEach(function (d) {
-      var c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('cx', d.cx);
-      c.setAttribute('cy', d.cy);
-      c.setAttribute('r', d.r);
-      c.setAttribute('fill', d.fill);
-      svg.appendChild(c);
-    });
+  function dot(tone) {
+    return el('span', 'lbx-dot lbx-tone-' + (tone || 'unknown'));
+  }
 
-    var pill = document.createElementNS(SVG_NS, 'rect');
-    pill.setAttribute('x', '3.5');
-    pill.setAttribute('y', '11');
-    pill.setAttribute('width', '17');
-    pill.setAttribute('height', '10');
-    pill.setAttribute('rx', '3');
-    pill.setAttribute('fill', '#6366f1');
-    svg.appendChild(pill);
-
-    var play = document.createElementNS(SVG_NS, 'polygon');
-    play.setAttribute('points', '10.3,13.6 15.2,16 10.3,18.4');
-    play.setAttribute('fill', '#ffffff');
-    svg.appendChild(play);
-
-    return svg;
+  function formatRuntime(minutes) {
+    var m = Number(minutes);
+    if (!m || m <= 0) {
+      return '';
+    }
+    if (m < 60) {
+      return m + ' min';
+    }
+    var h = Math.floor(m / 60);
+    var rest = m % 60;
+    return h + ' h ' + (rest < 10 ? '0' : '') + rest;
   }
 
   function extractFilmMeta() {
@@ -132,12 +151,27 @@
     var yearNode = document.querySelector('.releaseyear a, .film-header-group .number a');
     var year = yearNode ? yearNode.textContent.trim() : '';
 
+    // Director and runtime are only used by the ticket style.
+    var directorNode = document.querySelector('.credits a[href*="/director/"], a.contributor[href*="/director/"]');
+    var director = directorNode ? directorNode.textContent.replace(/\s+/g, ' ').trim() : '';
+
+    var runtime = '';
+    var footer = document.querySelector('.text-footer');
+    if (footer) {
+      var rt = footer.textContent.match(/(\d+)\s*mins?/i);
+      if (rt) {
+        runtime = formatRuntime(rt[1]);
+      }
+    }
+
     return {
       tmdbId: tmdbId.trim(),
       mediaType: tmdbType && tmdbType.toLowerCase() === 'tv' ? 'tv' : 'movie',
       title: title,
       originalTitle: originalTitle,
-      year: year
+      year: year,
+      director: director,
+      runtime: runtime
     };
   }
 
@@ -171,128 +205,27 @@
 
   function ensureRootMounted() {
     var existing = document.getElementById(ROOT_ID);
-    var target = findMountTarget();
-    if (!target) {
-      return existing;
+    var root = existing;
+
+    if (!existing || !document.body.contains(existing)) {
+      var target = findMountTarget();
+      if (!target) {
+        return existing;
+      }
+      root = existing || el('section');
+      root.id = ROOT_ID;
+      if (target.mode === 'after') {
+        target.node.insertAdjacentElement('afterend', root);
+      } else if (target.mode === 'before') {
+        target.node.insertAdjacentElement('beforebegin', root);
+      } else {
+        target.node.insertBefore(root, target.node.firstChild);
+      }
     }
 
-    if (existing && document.body.contains(existing)) {
-      ns.ui.attachMagicCard(existing);
-      return existing;
-    }
-
-    var root = existing || el('section');
-    root.id = ROOT_ID;
-    root.className = 'lbx-magic-card lbx-seerr-card';
-    ns.ui.attachMagicCard(root);
-
-    if (target.mode === 'after') {
-      target.node.insertAdjacentElement('afterend', root);
-    } else if (target.mode === 'before') {
-      target.node.insertAdjacentElement('beforebegin', root);
-    } else {
-      target.node.insertBefore(root, target.node.firstChild);
-    }
-
+    root.className = 'lbx-w lbx-w-' + widgetStyle;
+    root.setAttribute('aria-label', 'Disponibilité sur Seerr / Jellyfin');
     return root;
-  }
-
-  function resolveBeamTone(state) {
-    if (!state || !state.configured) {
-      return 'default';
-    }
-    if (state.permissionMissing || state.authMissing) {
-      return 'pending';
-    }
-    if (state.seerrError && !state.jellyfin?.url && !state.mediaInfo) {
-      return 'blocked';
-    }
-    var info = state.mediaInfo || {};
-    var s1 = info.status || MEDIA_STATUS.UNKNOWN;
-    var s2 = info.status4k || MEDIA_STATUS.UNKNOWN;
-    if (s1 === MEDIA_STATUS.AVAILABLE || s2 === MEDIA_STATUS.AVAILABLE || (state.jellyfin && state.jellyfin.url)) {
-      return 'available';
-    }
-    if (s1 === MEDIA_STATUS.PROCESSING || s2 === MEDIA_STATUS.PROCESSING) {
-      return 'processing';
-    }
-    if (s1 === MEDIA_STATUS.PENDING || s2 === MEDIA_STATUS.PENDING || s1 === MEDIA_STATUS.PARTIAL || s2 === MEDIA_STATUS.PARTIAL) {
-      return 'pending';
-    }
-    if (s1 === MEDIA_STATUS.BLOCKLISTED || s2 === MEDIA_STATUS.BLOCKLISTED) {
-      return 'blocked';
-    }
-    return 'default';
-  }
-
-  function buildHeader(state) {
-    var header = el('div', 'lbx-seerr-header lbx-card-layer');
-    var brand = el('div', 'lbx-seerr-brand');
-    brand.appendChild(brandSvg());
-    brand.appendChild(el('span', null, 'Seerr / Jellyfin'));
-    if (state && state.mediaType) {
-      brand.appendChild(
-        el('span', 'lbx-seerr-type-tag', state.mediaType === 'tv' ? 'Série' : 'Film')
-      );
-    }
-    header.appendChild(brand);
-
-    var actions = el('div', 'lbx-seerr-header-actions');
-
-    if (state && ns.utils.isSafeHttpUrl(state.seerrMediaUrl)) {
-      var openLink = el('a', 'lbx-btn-icon-tactile');
-      openLink.href = state.seerrMediaUrl;
-      openLink.target = '_blank';
-      openLink.rel = 'noopener noreferrer';
-      openLink.title = 'Ouvrir la fiche sur Seerr';
-      openLink.setAttribute('aria-label', 'Ouvrir la fiche sur Seerr');
-      openLink.appendChild(
-        svgIcon([
-          { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' },
-          { tag: 'polyline', points: '15 3 21 3 21 9' },
-          { tag: 'line', x1: '10', y1: '14', x2: '21', y2: '3' }
-        ])
-      );
-      actions.appendChild(openLink);
-    }
-
-    var refreshBtn = el('button', 'lbx-btn-icon-tactile');
-    refreshBtn.type = 'button';
-    refreshBtn.title = 'Actualiser le statut et les profils';
-    refreshBtn.setAttribute('aria-label', 'Actualiser');
-    refreshBtn.disabled = isLoading || isSubmitting;
-    refreshBtn.appendChild(
-      svgIcon([
-        { tag: 'polyline', points: '23 4 23 10 17 10' },
-        { tag: 'polyline', points: '1 20 1 14 7 14' },
-        { d: 'M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15' }
-      ])
-    );
-    refreshBtn.addEventListener('click', function () {
-      feedback = null;
-      loadMediaState(true);
-    });
-    actions.appendChild(refreshBtn);
-
-    var settingsBtn = el('button', 'lbx-btn-icon-tactile');
-    settingsBtn.type = 'button';
-    settingsBtn.title = 'Paramètres de l’extension';
-    settingsBtn.setAttribute('aria-label', 'Paramètres de l’extension');
-    settingsBtn.appendChild(
-      svgIcon([
-        { tag: 'circle', cx: '12', cy: '12', r: '3' },
-        {
-          d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
-        }
-      ])
-    );
-    settingsBtn.addEventListener('click', function () {
-      ns.api.sendMessage({ type: MSG.OPEN_OPTIONS });
-    });
-    actions.appendChild(settingsBtn);
-
-    header.appendChild(actions);
-    return header;
   }
 
   function getRequestableServers(state) {
@@ -383,229 +316,288 @@
     return selectedServer;
   }
 
-  function renderRequestsSection(body, state) {
-    var requests = (state.mediaInfo && state.mediaInfo.requests) || [];
-    if (requests.length === 0) {
-      return;
+  /* ------------------------------------------------------------------
+     View model shared by both styles
+     ------------------------------------------------------------------ */
+
+  function toneOf(status) {
+    return ns.utils.getMediaStatusMeta(status).tone;
+  }
+
+  function isKnownStatus(status) {
+    return Boolean(status) && status !== MEDIA_STATUS.UNKNOWN && status !== MEDIA_STATUS.DELETED;
+  }
+
+  function jellyfinConfigured(state) {
+    return Boolean(state && state.preferences && state.preferences.jellyfinUrl);
+  }
+
+  // Describes what to show, without drawing anything.
+  function buildView(state) {
+    var info = state.mediaInfo || {
+      status: MEDIA_STATUS.UNKNOWN,
+      status4k: MEDIA_STATUS.UNKNOWN,
+      requests: []
+    };
+    var st = info.status || MEDIA_STATUS.UNKNOWN;
+    var st4 = info.status4k || MEDIA_STATUS.UNKNOWN;
+    var jf = state.jellyfin || {};
+    var jfConf = jellyfinConfigured(state);
+    var allServers = (state.services && state.services.servers) || [];
+    var has4kServer = allServers.some(function (s) {
+      return Boolean(s.is4k);
+    });
+    var seerrUrl = ns.utils.isSafeHttpUrl(state.seerrMediaUrl) ? state.seerrMediaUrl : '';
+
+    var view = {
+      watch: [],
+      status: null,
+      openSeerr: '',
+      extra: [],
+      requests: [],
+      form: null,
+      seerrUrl: seerrUrl,
+      serverLabel: jfConf || jf.source === 'jellyfin-direct' ? 'Jellyfin' : 'Seerr'
+    };
+
+    // 1. Playback links. When one exists it doubles as the status.
+    if (ns.utils.isSafeHttpUrl(jf.url)) {
+      // Without a Jellyfin URL the link comes from Seerr, whose media server may not be Jellyfin.
+      view.watch.push({ label: jfConf ? 'Regarder sur Jellyfin' : 'Regarder', url: jf.url });
+    }
+    if (ns.utils.isSafeHttpUrl(jf.url4k)) {
+      view.watch.push({ label: 'Regarder en 4K', url: jf.url4k });
     }
 
-    var container = el('div', 'lbx-seerr-requests');
+    // 2. Status, only when there is no "watch" link.
+    if (view.watch.length === 0) {
+      var text = STATUS_TEXT[st] || STATUS_TEXT[MEDIA_STATUS.UNKNOWN];
+      if (!isKnownStatus(st) && (jfConf || !state.hasSeerr)) {
+        text = 'Absent de Jellyfin';
+      }
+      view.status = { tone: toneOf(st), text: text, short: STATUS_SHORT[st] || 'Absent', sub: '' };
+      if ((st === MEDIA_STATUS.AVAILABLE || st === MEDIA_STATUS.PARTIAL) && seerrUrl) {
+        view.openSeerr = seerrUrl;
+      }
+    }
+
+    // 3. 4K status: Seerr tracks one status for its 4K servers, whatever their profiles.
+    if ((has4kServer || isKnownStatus(st4)) && isKnownStatus(st4) && !ns.utils.isSafeHttpUrl(jf.url4k)) {
+      view.extra.push({ tone: toneOf(st4), text: '4K · ' + (STATUS_TEXT[st4] || '') });
+    }
+
+    // 4. Existing requests.
+    var requests = info.requests || [];
     requests.forEach(function (req) {
-      var item = el('div', 'lbx-seerr-request-item');
-      var meta = el('div', 'lbx-seerr-request-meta');
-
-      var reqStatusMeta = ns.utils.getRequestStatusMeta(req.status);
-      var titleParts = [];
-      if (req.is4k) {
-        titleParts.push('[4K]');
-      }
-      titleParts.push(reqStatusMeta.label);
+      var meta = ns.utils.getRequestStatusMeta(req.status);
+      var subParts = [];
       if (req.profileName) {
-        titleParts.push('· ' + req.profileName);
+        subParts.push(req.profileName);
       }
-      meta.appendChild(el('div', 'lbx-seerr-request-title', titleParts.join(' ')));
-      meta.appendChild(el('div', 'lbx-seerr-request-sub', 'Par ' + req.requestedByName));
-      item.appendChild(meta);
-
-      var cancellable =
-        req.status === REQUEST_STATUS.PENDING_APPROVAL || req.status === REQUEST_STATUS.APPROVED;
-      if (cancellable && req.id) {
-        var isConfirming = confirmCancelId === req.id;
-        var cancelBtn = el(
-          'button',
-          'lbx-btn-tactile lbx-btn-danger lbx-seerr-cancel-sm' +
-            (isConfirming ? ' lbx-btn-danger-armed' : ''),
-          isConfirming ? 'Confirmer ?' : 'Annuler'
-        );
-        cancelBtn.type = 'button';
-        cancelBtn.disabled = isSubmitting;
-        cancelBtn.addEventListener('click', function () {
-          if (confirmCancelId !== req.id) {
-            confirmCancelId = req.id;
-            if (confirmTimer) {
-              clearTimeout(confirmTimer);
-            }
-            confirmTimer = setTimeout(function () {
-              confirmCancelId = null;
-              render();
-            }, 4000);
-            render();
-            return;
-          }
-          confirmCancelId = null;
-          if (confirmTimer) {
-            clearTimeout(confirmTimer);
-          }
-          handleCancelRequest(req.id);
-        });
-        item.appendChild(cancelBtn);
+      if (req.requestedByName) {
+        subParts.push('par ' + req.requestedByName);
       }
-
-      container.appendChild(item);
+      view.requests.push({
+        id: req.id,
+        is4k: Boolean(req.is4k),
+        tone: meta.tone,
+        title: 'Demande ' + (req.is4k ? '4K ' : '') + meta.label.charAt(0).toLowerCase() + meta.label.slice(1),
+        sub: subParts.join(' · '),
+        cancellable:
+          Boolean(req.id) &&
+          (req.status === REQUEST_STATUS.PENDING_APPROVAL || req.status === REQUEST_STATUS.APPROVED),
+        merged: false
+      });
     });
 
-    body.appendChild(container);
+    // A single regular request next to a status line: show both on one line.
+    var regular = view.requests.filter(function (r) {
+      return !r.is4k;
+    });
+    if (view.status && !view.openSeerr && regular.length === 1) {
+      view.status.sub = regular[0].sub;
+      regular[0].merged = true;
+    }
+
+    // 5. Request form (same conditions as before the redesign).
+    if (state.hasSeerr) {
+      var servers = getRequestableServers(state);
+      var canRequest =
+        (allServers.length > 0 && servers.length > 0) ||
+        (allServers.length === 0 && ns.utils.canRequestStatus(st));
+      if (canRequest) {
+        var only4k =
+          servers.length > 0 &&
+          servers.every(function (s) {
+            return s.is4k;
+          });
+        view.form = {
+          collapsed: view.watch.length > 0 || Boolean(view.openSeerr),
+          toggleLabel: only4k
+            ? 'Demander en 4K…'
+            : state.mediaType === 'tv'
+              ? 'Demander d’autres saisons…'
+              : 'Faire une autre demande…'
+        };
+      }
+    }
+
+    return view;
   }
 
-  function renderServerControl(form, servers, selectedServer) {
-    if (servers.length <= 1 && !(servers.length === 1 && servers[0].is4k)) {
-      return;
-    }
+  /* ------------------------------------------------------------------
+     Form controls (shared, skinned by each style)
+     ------------------------------------------------------------------ */
 
-    var srvField = el('div', 'lbx-seerr-field');
-    srvField.appendChild(el('label', 'lbx-seerr-label', 'Serveur'));
-
-    if (servers.length >= 2 && servers.length <= 3) {
-      var seg = el('div', 'lbx-segmented');
-      seg.setAttribute('role', 'group');
-      seg.setAttribute('aria-label', 'Choix du serveur');
-
-      servers.forEach(function (srv) {
-        var isActive = selectedServer && Number(srv.id) === Number(selectedServer.id);
-        var label = (srv.is4k ? '4K' : 'HD') + ' · ' + srv.name;
-        var segBtn = el(
-          'button',
-          'lbx-seg-btn' + (isActive ? ' lbx-seg-active' : ''),
-          label
-        );
-        segBtn.type = 'button';
-        segBtn.title = (srv.is4k ? '[4K] ' : '[HD] ') + srv.name;
-        segBtn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-        segBtn.addEventListener('click', function () {
-          if (Number(formSelection.serverId) === Number(srv.id)) {
-            return;
-          }
-          formSelection.serverId = Number(srv.id);
-          formSelection.profileId = null;
-          formSelection.rootFolder = '';
-          formSelection.tags = [];
-          render();
-        });
-        seg.appendChild(segBtn);
-      });
-      srvField.appendChild(seg);
-    } else {
-      var srvSelect = el('select');
-      servers.forEach(function (srv) {
-        var opt = el('option', null, (srv.is4k ? '[4K] ' : '[HD] ') + srv.name);
-        opt.value = String(srv.id);
-        if (selectedServer && Number(srv.id) === Number(selectedServer.id)) {
-          opt.selected = true;
-        }
-        srvSelect.appendChild(opt);
-      });
-      srvSelect.addEventListener('change', function () {
-        formSelection.serverId = Number(srvSelect.value);
-        formSelection.profileId = null;
-        formSelection.rootFolder = '';
-        formSelection.tags = [];
-        render();
-      });
-      srvField.appendChild(ns.ui.createSelectWrap(srvSelect));
-    }
-
-    form.appendChild(srvField);
+  // Native <select>, skinned through the style's class.
+  function makeSelect(cls, label, options, onChange) {
+    var wrap = el('span', 'lbx-sel ' + cls);
+    var select = el('select');
+    select.setAttribute('aria-label', label);
+    options.forEach(function (o) {
+      var opt = el('option', null, o.text);
+      opt.value = o.value;
+      if (o.selected) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', function () {
+      onChange(select.value);
+    });
+    wrap.appendChild(select);
+    return wrap;
   }
 
-  function renderRequestForm(body, state) {
-    if (!state.hasSeerr) {
-      return;
-    }
+  // Servers keep the name given in Seerr; only 4K ones are marked.
+  function serverName(srv) {
+    return srv.name + (srv.is4k ? ' (4K)' : '');
+  }
 
+  // Returns the form fields: { label, control } or { note }.
+  function buildFormFields(state, selectedServer, cls) {
+    var fields = [];
     var servers = getRequestableServers(state);
-    var allServers = (state.services && state.services.servers) || [];
-    var info = state.mediaInfo || {};
-    var statusHd = info.status || MEDIA_STATUS.UNKNOWN;
     var advancedAllowed = !state.services || state.services.advancedAllowed !== false;
 
-    if (allServers.length > 0 && servers.length === 0) {
-      return;
+    if (servers.length > 1) {
+      fields.push({
+        label: 'Serveur',
+        control: makeSelect(
+          cls,
+          'Serveur',
+          servers.map(function (srv) {
+            return {
+              value: String(srv.id),
+              text: serverName(srv),
+              selected: selectedServer && Number(srv.id) === Number(selectedServer.id)
+            };
+          }),
+          function (value) {
+            formSelection.serverId = Number(value);
+            formSelection.profileId = null;
+            formSelection.rootFolder = '';
+            formSelection.tags = [];
+            render();
+          }
+        )
+      });
     }
-    if (allServers.length === 0 && !ns.utils.canRequestStatus(statusHd)) {
-      return;
-    }
-
-    var selectedServer = syncFormDefaults(state);
-    var form = el('div', 'lbx-seerr-form');
-
-    renderServerControl(form, servers, selectedServer);
 
     if (selectedServer && Array.isArray(selectedServer.profiles) && selectedServer.profiles.length > 0) {
-      var profField = el('div', 'lbx-seerr-field');
-      profField.appendChild(el('label', 'lbx-seerr-label', 'Profil de qualité'));
-      var profSelect = el('select');
-      selectedServer.profiles.forEach(function (prof) {
-        var opt = el('option', null, prof.name);
-        opt.value = String(prof.id);
-        if (Number(prof.id) === Number(formSelection.profileId)) {
-          opt.selected = true;
-        }
-        profSelect.appendChild(opt);
-      });
-      profSelect.addEventListener('change', function () {
-        formSelection.profileId = Number(profSelect.value);
-      });
-      profField.appendChild(ns.ui.createSelectWrap(profSelect));
-      form.appendChild(profField);
-    } else if (!advancedAllowed || (selectedServer && selectedServer.detailError)) {
-      form.appendChild(
-        el(
-          'p',
-          'lbx-seerr-note',
-          'Profil géré par défaut par Seerr (permission avancée requise pour le choisir ici).'
+      fields.push({
+        label: 'Profil',
+        control: makeSelect(
+          cls,
+          'Profil de qualité',
+          selectedServer.profiles.map(function (prof) {
+            return {
+              value: String(prof.id),
+              text: prof.name,
+              selected: Number(prof.id) === Number(formSelection.profileId)
+            };
+          }),
+          function (value) {
+            formSelection.profileId = Number(value);
+          }
         )
-      );
+      });
+    } else if (!advancedAllowed || (selectedServer && selectedServer.detailError)) {
+      fields.push({ note: 'Profil choisi par Seerr (permission avancée requise pour le changer ici).' });
     }
 
+    return fields;
+  }
+
+  function makeChip(prefix, text, checked, onChange) {
+    var chip = el('label', prefix + '-chip');
+    var cb = el('input');
+    cb.type = 'checkbox';
+    cb.checked = checked;
+    cb.addEventListener('change', function () {
+      onChange(cb.checked);
+    });
+    chip.appendChild(cb);
+    chip.appendChild(el('span', null, text));
+    return chip;
+  }
+
+  // Advanced options (root folder, tags, seasons) inside a <details>.
+  function buildAdvanced(state, selectedServer, prefix, selectCls) {
     var hasFolders =
       selectedServer && Array.isArray(selectedServer.rootFolders) && selectedServer.rootFolders.length > 0;
     var hasTags = selectedServer && Array.isArray(selectedServer.tags) && selectedServer.tags.length > 0;
     var hasSeasons = state.mediaType === 'tv' && Array.isArray(state.seasons) && state.seasons.length > 0;
 
-    if (hasFolders || hasTags || hasSeasons) {
-      var details = el('details', 'lbx-seerr-advanced');
-      if (state.preferences && state.preferences.expandAdvancedByDefault) {
-        details.open = true;
-      }
-      details.appendChild(el('summary', null, 'Options avancées'));
-      var advBody = el('div', 'lbx-seerr-advanced-body');
+    if (!hasFolders && !hasTags && !hasSeasons) {
+      return null;
+    }
 
-      if (hasFolders) {
-        var folderField = el('div', 'lbx-seerr-field');
-        folderField.appendChild(el('label', 'lbx-seerr-label', 'Dossier racine'));
-        var folderSelect = el('select');
-        selectedServer.rootFolders.forEach(function (folder) {
-          var spaceStr =
-            typeof folder.freeSpace === 'number'
-              ? ' (' + ns.utils.formatBytes(folder.freeSpace) + ' libres)'
-              : '';
-          var opt = el('option', null, folder.path + spaceStr);
-          opt.value = folder.path;
-          if (folder.path === formSelection.rootFolder) {
-            opt.selected = true;
+    var details = el('details', prefix + '-adv');
+    if (state.preferences && state.preferences.expandAdvancedByDefault) {
+      details.open = true;
+    }
+    details.appendChild(el('summary', prefix + '-adv-summary', 'Options avancées'));
+    var body = el('div', prefix + '-adv-body');
+
+    function addField(label, control) {
+      var field = el('div', prefix + '-adv-field');
+      field.appendChild(el('span', prefix + '-adv-label', label));
+      field.appendChild(control);
+      body.appendChild(field);
+    }
+
+    if (hasFolders) {
+      addField(
+        'Dossier',
+        makeSelect(
+          selectCls,
+          'Dossier racine',
+          selectedServer.rootFolders.map(function (folder) {
+            var spaceStr =
+              typeof folder.freeSpace === 'number'
+                ? ' (' + ns.utils.formatBytes(folder.freeSpace) + ' libres)'
+                : '';
+            return {
+              value: folder.path,
+              text: folder.path + spaceStr,
+              selected: folder.path === formSelection.rootFolder
+            };
+          }),
+          function (value) {
+            formSelection.rootFolder = value;
           }
-          folderSelect.appendChild(opt);
-        });
-        folderSelect.addEventListener('change', function () {
-          formSelection.rootFolder = folderSelect.value;
-        });
-        folderField.appendChild(ns.ui.createSelectWrap(folderSelect));
-        advBody.appendChild(folderField);
-      }
+        )
+      );
+    }
 
-      if (hasTags) {
-        var tagsField = el('div', 'lbx-seerr-field');
-        tagsField.appendChild(el('label', 'lbx-seerr-label', 'Tags'));
-        var chips = el('div', 'lbx-seerr-chips');
-        selectedServer.tags.forEach(function (tag) {
-          var chip = el('label', 'lbx-seerr-chip');
-          var cb = el('input');
-          cb.type = 'checkbox';
-          cb.value = String(tag.id);
-          cb.checked = formSelection.tags.indexOf(Number(tag.id)) !== -1;
-          cb.addEventListener('change', function () {
-            var idNum = Number(tag.id);
-            if (cb.checked) {
+    if (hasTags) {
+      var chips = el('div', prefix + '-chips');
+      selectedServer.tags.forEach(function (tag) {
+        var idNum = Number(tag.id);
+        chips.appendChild(
+          makeChip(prefix, tag.label, formSelection.tags.indexOf(idNum) !== -1, function (checked) {
+            if (checked) {
               if (formSelection.tags.indexOf(idNum) === -1) {
                 formSelection.tags.push(idNum);
               }
@@ -614,46 +606,31 @@
                 return v !== idNum;
               });
             }
-          });
-          chip.appendChild(cb);
-          chip.appendChild(el('span', null, tag.label));
-          chips.appendChild(chip);
-        });
-        tagsField.appendChild(chips);
-        advBody.appendChild(tagsField);
-      }
+          })
+        );
+      });
+      addField('Tags', chips);
+    }
 
-      if (hasSeasons) {
-        var seasonField = el('div', 'lbx-seerr-field');
-        seasonField.appendChild(el('label', 'lbx-seerr-label', 'Saisons'));
-        var seasonChips = el('div', 'lbx-seerr-chips');
-
-        var allLabel = el('label', 'lbx-seerr-chip');
-        var allCb = el('input');
-        allCb.type = 'checkbox';
-        allCb.checked = formSelection.allSeasons;
-        allCb.addEventListener('change', function () {
-          formSelection.allSeasons = allCb.checked;
-          if (allCb.checked) {
+    if (hasSeasons) {
+      var seasonChips = el('div', prefix + '-chips');
+      seasonChips.appendChild(
+        makeChip(prefix, 'Toutes', formSelection.allSeasons, function (checked) {
+          formSelection.allSeasons = checked;
+          if (checked) {
             formSelection.seasons = state.seasons.map(function (s) {
               return Number(s.seasonNumber);
             });
           }
           render();
-        });
-        allLabel.appendChild(allCb);
-        allLabel.appendChild(el('span', null, 'Toutes'));
-        seasonChips.appendChild(allLabel);
-
-        if (!formSelection.allSeasons) {
-          state.seasons.forEach(function (s) {
-            var sLabel = el('label', 'lbx-seerr-chip');
-            var sCb = el('input');
-            sCb.type = 'checkbox';
-            sCb.checked = formSelection.seasons.indexOf(Number(s.seasonNumber)) !== -1;
-            sCb.addEventListener('change', function () {
-              var num = Number(s.seasonNumber);
-              if (sCb.checked) {
+        })
+      );
+      if (!formSelection.allSeasons) {
+        state.seasons.forEach(function (s) {
+          var num = Number(s.seasonNumber);
+          seasonChips.appendChild(
+            makeChip(prefix, 'S' + s.seasonNumber, formSelection.seasons.indexOf(num) !== -1, function (checked) {
+              if (checked) {
                 if (formSelection.seasons.indexOf(num) === -1) {
                   formSelection.seasons.push(num);
                 }
@@ -662,44 +639,502 @@
                   return n !== num;
                 });
               }
-            });
-            sLabel.appendChild(sCb);
-            sLabel.appendChild(el('span', null, 'S' + s.seasonNumber));
-            seasonChips.appendChild(sLabel);
-          });
-        }
+            })
+          );
+        });
+      }
+      addField('Saisons', seasonChips);
+    }
 
-        seasonField.appendChild(seasonChips);
-        advBody.appendChild(seasonField);
+    details.appendChild(body);
+    return details;
+  }
+
+  function submitLabel(state, selectedServer) {
+    if (isSubmitting) {
+      return 'Envoi en cours…';
+    }
+    if (selectedServer && selectedServer.is4k) {
+      return state.mediaType === 'tv' ? 'Demander la série en 4K' : 'Demander en 4K';
+    }
+    return state.mediaType === 'tv' ? 'Demander la série' : 'Demander le film';
+  }
+
+  // Two-step cancel: first click arms the button, second click within 4 s confirms.
+  function cancelHandler(reqId) {
+    return function () {
+      if (confirmCancelId !== reqId) {
+        confirmCancelId = reqId;
+        if (confirmTimer) {
+          clearTimeout(confirmTimer);
+        }
+        confirmTimer = setTimeout(function () {
+          confirmCancelId = null;
+          render();
+        }, 4000);
+        render();
+        return;
+      }
+      confirmCancelId = null;
+      if (confirmTimer) {
+        clearTimeout(confirmTimer);
+      }
+      handleCancelRequest(reqId);
+    };
+  }
+
+  function cancelLabel(req, view) {
+    if (confirmCancelId === req.id) {
+      return 'Confirmer l’annulation';
+    }
+    var several =
+      view.requests.filter(function (r) {
+        return r.cancellable;
+      }).length > 1;
+    return several && req.is4k ? 'Annuler la demande 4K' : 'Annuler la demande';
+  }
+
+  function openOptions() {
+    ns.api.sendMessage({ type: MSG.OPEN_OPTIONS });
+  }
+
+  function refresh() {
+    feedback = null;
+    loadMediaState(true);
+  }
+
+  // Messages shown instead of the film (setup, permission, errors).
+  function messageState(state) {
+    if (isLoading && !state) {
+      return { kind: 'loading', text: 'Vérification sur Seerr / Jellyfin…' };
+    }
+    if (!state) {
+      return {
+        kind: 'error',
+        text: (feedback && feedback.text) || 'Impossible de récupérer les informations.',
+        action: { label: 'Réessayer', onClick: refresh }
+      };
+    }
+    if (!state.configured) {
+      return {
+        kind: 'info',
+        text: 'Configure ton serveur Seerr ou Jellyfin pour voir la disponibilité de ce film.',
+        action: { label: 'Configurer l’extension', onClick: openOptions }
+      };
+    }
+    if (state.permissionMissing) {
+      return {
+        kind: 'warn',
+        text: 'Permission réseau requise pour accéder à ' + state.seerrUrl + '.',
+        action: { label: 'Autoriser dans les paramètres', onClick: openOptions }
+      };
+    }
+    if (state.authMissing) {
+      return {
+        kind: 'warn',
+        text: 'Clé API Seerr manquante dans la configuration.',
+        action: { label: 'Configurer la clé API', onClick: openOptions }
+      };
+    }
+    if (state.seerrError && !(state.jellyfin && state.jellyfin.url) && !state.mediaInfo) {
+      return { kind: 'error', text: state.seerrError, action: { label: 'Réessayer', onClick: refresh } };
+    }
+    return null;
+  }
+
+  function feedbackItems(state) {
+    var items = [];
+    if (state && state.seerrError) {
+      items.push({ kind: 'warn', text: state.seerrError });
+    }
+    if (feedback) {
+      items.push({ kind: feedback.type === 'success' ? 'success' : 'error', text: feedback.text });
+    }
+    return items;
+  }
+
+  function externalLink(className, text, url) {
+    var a = el('a', className, text);
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    return a;
+  }
+
+  function textButton(className, text, onClick) {
+    var b = el('button', className, text);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  /* ------------------------------------------------------------------
+     Native style: extends Letterboxd's actions panel
+     ------------------------------------------------------------------ */
+
+  function nRow(cls, text) {
+    return el('div', 'lbx-n-row' + (cls ? ' ' + cls : ''), text);
+  }
+
+  function nAction(tag, text, iconName, cls) {
+    var node = el(tag, 'lbx-n-row lbx-n-action' + (cls ? ' ' + cls : ''));
+    if (tag === 'button') {
+      node.type = 'button';
+    }
+    if (iconName) {
+      var ic = el('span', 'lbx-n-icon');
+      ic.appendChild(icon(iconName));
+      node.appendChild(ic);
+    }
+    node.appendChild(el('span', null, text));
+    return node;
+  }
+
+  function nStack(tone, title, sub) {
+    var row = nRow('lbx-n-stack');
+    var line = el('span', 'lbx-n-line');
+    line.appendChild(dot(tone));
+    line.appendChild(el('span', null, title));
+    row.appendChild(line);
+    if (sub) {
+      row.appendChild(el('span', 'lbx-n-sub', sub));
+    }
+    return row;
+  }
+
+  function renderNatif(root, state) {
+    var panel = el('div', 'lbx-n');
+    var msg = messageState(state);
+
+    if (msg) {
+      panel.appendChild(nRow('lbx-n-msg lbx-n-msg-' + msg.kind, msg.text));
+      if (msg.action) {
+        var act = nAction('button', msg.action.label, null, null);
+        act.addEventListener('click', msg.action.onClick);
+        panel.appendChild(act);
+      }
+      root.appendChild(panel);
+      return;
+    }
+
+    var view = buildView(state);
+
+    view.watch.forEach(function (w) {
+      var a = nAction('a', w.label, 'play', 'lbx-n-watch');
+      a.href = w.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      panel.appendChild(a);
+    });
+
+    if (view.status) {
+      if (view.openSeerr) {
+        var link = externalLink('lbx-n-row lbx-n-action lbx-n-split', null, view.openSeerr);
+        var left = el('span', 'lbx-n-line');
+        left.appendChild(dot(view.status.tone));
+        left.appendChild(el('span', null, view.status.text));
+        var right = el('span', 'lbx-n-line lbx-n-sub', 'Ouvrir dans Seerr');
+        right.appendChild(icon('ext'));
+        link.appendChild(left);
+        link.appendChild(right);
+        panel.appendChild(link);
+      } else {
+        panel.appendChild(nStack(view.status.tone, view.status.text, view.status.sub));
+      }
+    }
+
+    view.extra.forEach(function (x) {
+      panel.appendChild(nStack(x.tone, x.text, ''));
+    });
+
+    view.requests.forEach(function (req) {
+      if (!req.merged) {
+        panel.appendChild(nStack(req.tone, req.title, req.sub));
+      }
+    });
+
+    view.requests.forEach(function (req) {
+      if (req.cancellable) {
+        var armed = confirmCancelId === req.id;
+        var btn = nAction(
+          'button',
+          cancelLabel(req, view),
+          null,
+          'lbx-n-sub lbx-n-cancel' + (armed ? ' lbx-n-armed' : '')
+        );
+        btn.disabled = isSubmitting;
+        btn.addEventListener('click', cancelHandler(req.id));
+        panel.appendChild(btn);
+      }
+    });
+
+    if (view.form) {
+      if (view.form.collapsed && !formOpen) {
+        var toggle = nAction('button', view.form.toggleLabel, null, 'lbx-n-sub');
+        toggle.addEventListener('click', function () {
+          formOpen = true;
+          render();
+        });
+        panel.appendChild(toggle);
+      } else {
+        var selectedServer = syncFormDefaults(state);
+        buildFormFields(state, selectedServer, 'lbx-n-select').forEach(function (f) {
+          if (f.note) {
+            panel.appendChild(nRow('lbx-n-sub lbx-n-note', f.note));
+            return;
+          }
+          var row = el('label', 'lbx-n-row lbx-n-split lbx-n-field');
+          row.appendChild(el('span', 'lbx-n-sub', f.label));
+          row.appendChild(f.control);
+          panel.appendChild(row);
+        });
+        var adv = buildAdvanced(state, selectedServer, 'lbx-n', 'lbx-n-select');
+        if (adv) {
+          panel.appendChild(adv);
+        }
+        var submit = nAction('button', submitLabel(state, selectedServer), 'plus', 'lbx-n-submit');
+        submit.disabled = isSubmitting;
+        submit.addEventListener('click', function () {
+          handleSubmitRequest(selectedServer);
+        });
+        panel.appendChild(submit);
+      }
+    }
+
+    feedbackItems(state).forEach(function (f) {
+      panel.appendChild(nRow('lbx-n-msg lbx-n-msg-' + f.kind, f.text));
+    });
+
+    var foot = el('div', 'lbx-n-foot');
+    if (view.seerrUrl && !view.openSeerr) {
+      foot.appendChild(externalLink('lbx-link', 'Ouvrir dans Seerr', view.seerrUrl));
+    }
+    var refreshBtn = textButton('lbx-link', isLoading ? 'Actualisation…' : 'Actualiser', refresh);
+    refreshBtn.disabled = isLoading || isSubmitting;
+    foot.appendChild(refreshBtn);
+    foot.appendChild(textButton('lbx-link', 'Réglages', openOptions));
+    panel.appendChild(foot);
+
+    root.appendChild(panel);
+  }
+
+  /* ------------------------------------------------------------------
+     Ticket style: a cinema ticket whose stub is the main button
+     ------------------------------------------------------------------ */
+
+  // Picks the stub action and the secondary links of the ticket.
+  function planTicket(state, view, msg) {
+    var plan = { stub: null, links: [], showForm: false, selectedServer: null };
+
+    if (msg) {
+      plan.stub = msg.action
+        ? { kind: 'plain', label: msg.action.label, onClick: msg.action.onClick }
+        : { kind: 'plain', label: '…', disabled: true };
+      return plan;
+    }
+
+    plan.showForm = Boolean(view.form) && (!view.form.collapsed || formOpen);
+
+    if (plan.showForm) {
+      var selectedServer = syncFormDefaults(state);
+      plan.selectedServer = selectedServer;
+      plan.stub = {
+        kind: 'ask',
+        label: submitLabel(state, selectedServer),
+        disabled: isSubmitting,
+        onClick: function () {
+          handleSubmitRequest(selectedServer);
+        }
+      };
+      view.watch.forEach(function (w) {
+        plan.links.push({ label: w.label, url: w.url });
+      });
+      if (view.form.collapsed) {
+        plan.links.push({
+          label: 'Fermer',
+          onClick: function () {
+            formOpen = false;
+            render();
+          }
+        });
+      }
+    } else if (view.watch.length > 0) {
+      plan.stub = { kind: 'go', label: view.watch[0].label, url: view.watch[0].url, iconBefore: 'play' };
+      view.watch.slice(1).forEach(function (w) {
+        plan.links.push({ label: w.label, url: w.url });
+      });
+    } else if (view.openSeerr) {
+      plan.stub = { kind: 'go', label: 'Ouvrir dans Seerr', url: view.openSeerr, iconAfter: 'ext' };
+    }
+
+    var cancellable = view.requests.filter(function (r) {
+      return r.cancellable;
+    });
+    if (!plan.stub && cancellable.length > 0) {
+      var first = cancellable.shift();
+      plan.stub = {
+        kind: 'plain',
+        label: cancelLabel(first, view),
+        armed: confirmCancelId === first.id,
+        disabled: isSubmitting,
+        onClick: cancelHandler(first.id)
+      };
+    }
+    cancellable.forEach(function (r) {
+      plan.links.push({ label: cancelLabel(r, view), onClick: cancelHandler(r.id), danger: true });
+    });
+
+    if (view.form && view.form.collapsed && !formOpen) {
+      plan.links.unshift({
+        label: view.form.toggleLabel.replace('…', ''),
+        onClick: function () {
+          formOpen = true;
+          render();
+        }
+      });
+    }
+
+    if (!plan.stub) {
+      plan.stub = view.seerrUrl
+        ? { kind: 'plain', label: 'Voir dans Seerr', url: view.seerrUrl, iconAfter: 'ext' }
+        : { kind: 'plain', label: 'Actualiser', onClick: refresh };
+    }
+
+    return plan;
+  }
+
+  function renderBillet(root, state) {
+    var film = currentFilm || {};
+    var msg = messageState(state);
+    var view = msg ? null : buildView(state);
+    var plan = planTicket(state, view, msg);
+    var stub = plan.stub;
+
+    var ticket = el('div', 'lbx-t lbx-t-' + stub.kind);
+    var top = el('div', 'lbx-t-top');
+
+    var line = el('div', 'lbx-t-line');
+    line.appendChild(el('span', null, view ? view.serverLabel : 'Jellyboxd'));
+    line.appendChild(el('span', null, film.tmdbId ? 'TMDB ' + film.tmdbId : ''));
+    top.appendChild(line);
+    top.appendChild(el('div', 'lbx-t-title', film.title || ''));
+    if (film.director) {
+      top.appendChild(el('div', 'lbx-t-by', film.director));
+    }
+
+    // Printed fields, like the screen / row / seat boxes of a real ticket.
+    var fields = [];
+    if (film.year) {
+      fields.push({ label: 'Année', value: film.year });
+    }
+    if (film.runtime) {
+      fields.push({ label: 'Durée', value: film.runtime });
+    }
+    if (view && view.status) {
+      fields.push({ label: 'État', value: view.status.short, tone: view.status.tone });
+    }
+    if (fields.length) {
+      var grid = el('div', 'lbx-t-fields');
+      fields.forEach(function (f) {
+        var cell = el('div', 'lbx-t-cell');
+        cell.appendChild(el('small', null, f.label));
+        cell.appendChild(el('b', f.tone ? 'lbx-t-state lbx-tone-' + f.tone : null, f.value));
+        grid.appendChild(cell);
+      });
+      top.appendChild(grid);
+    }
+
+    if (msg) {
+      top.appendChild(el('div', 'lbx-t-note lbx-t-msg-' + msg.kind, msg.text));
+    } else {
+      if (view.status && view.status.sub) {
+        top.appendChild(el('div', 'lbx-t-note', view.status.sub));
+      }
+      view.extra.forEach(function (x) {
+        top.appendChild(el('div', 'lbx-t-note lbx-t-toned lbx-tone-' + x.tone, x.text));
+      });
+      view.requests.forEach(function (r) {
+        if (!r.merged) {
+          top.appendChild(el('div', 'lbx-t-note', r.title + (r.sub ? ' · ' + r.sub : '')));
+        }
+      });
+
+      if (plan.showForm) {
+        var form = el('div', 'lbx-t-form');
+        buildFormFields(state, plan.selectedServer, 'lbx-t-select').forEach(function (f) {
+          if (f.note) {
+            form.appendChild(el('div', 'lbx-t-note', f.note));
+            return;
+          }
+          var row = el('label', 'lbx-t-field');
+          row.appendChild(el('span', null, f.label));
+          row.appendChild(f.control);
+          form.appendChild(row);
+        });
+        var adv = buildAdvanced(state, plan.selectedServer, 'lbx-t', 'lbx-t-select');
+        if (adv) {
+          form.appendChild(adv);
+        }
+        top.appendChild(form);
       }
 
-      details.appendChild(advBody);
-      form.appendChild(details);
+      feedbackItems(state).forEach(function (f) {
+        top.appendChild(el('div', 'lbx-t-note lbx-t-msg-' + f.kind, f.text));
+      });
     }
 
-    var ctaLabel = 'Demander le film';
-    if (selectedServer && selectedServer.is4k) {
-      ctaLabel = state.mediaType === 'tv' ? 'Demander la série en 4K' : 'Demander en 4K';
-    } else if (state.mediaType === 'tv') {
-      ctaLabel = 'Demander la série';
+    if (plan.links.length) {
+      var linkRow = el('div', 'lbx-t-links');
+      plan.links.forEach(function (l) {
+        var node = l.url
+          ? externalLink('lbx-link lbx-t-link', l.label, l.url)
+          : textButton('lbx-link lbx-t-link' + (l.danger ? ' lbx-t-danger' : ''), l.label, l.onClick);
+        linkRow.appendChild(node);
+      });
+      top.appendChild(linkRow);
     }
 
-    var submitBtn = ns.ui.createShimmerButton({
-      variant: 'indigo',
-      label: isSubmitting ? 'Envoi en cours…' : ctaLabel,
-      loading: isSubmitting,
-      disabled: isSubmitting,
-      iconNode: svgIcon([
-        { tag: 'line', x1: '12', y1: '5', x2: '12', y2: '19' },
-        { tag: 'line', x1: '5', y1: '12', x2: '19', y2: '12' }
-      ])
-    });
-    submitBtn.addEventListener('click', function () {
-      handleSubmitRequest(selectedServer);
-    });
-    form.appendChild(submitBtn);
+    ticket.appendChild(top);
+    var perf = el('div', 'lbx-t-perf');
+    perf.setAttribute('aria-hidden', 'true');
+    ticket.appendChild(perf);
 
-    body.appendChild(form);
+    var stubNode;
+    if (stub.url) {
+      stubNode = externalLink('lbx-t-stub', null, stub.url);
+    } else {
+      stubNode = el('button', 'lbx-t-stub');
+      stubNode.type = 'button';
+      stubNode.disabled = Boolean(stub.disabled);
+      if (stub.onClick) {
+        stubNode.addEventListener('click', stub.onClick);
+      }
+    }
+    if (stub.armed) {
+      stubNode.classList.add('lbx-t-armed');
+    }
+    if (stub.iconBefore) {
+      stubNode.appendChild(icon(stub.iconBefore));
+    }
+    stubNode.appendChild(el('span', null, stub.label));
+    if (stub.iconAfter) {
+      stubNode.appendChild(icon(stub.iconAfter));
+    }
+    ticket.appendChild(stubNode);
+    root.appendChild(ticket);
+
+    // Fine print under the ticket.
+    var fine = el('div', 'lbx-t-fine');
+    if (view && view.seerrUrl && stub.url !== view.seerrUrl) {
+      fine.appendChild(externalLink('lbx-link', 'Ouvrir dans Seerr', view.seerrUrl));
+    }
+    if (!msg) {
+      var refreshBtn = textButton('lbx-link', isLoading ? 'Actualisation…' : 'Actualiser', refresh);
+      refreshBtn.disabled = isLoading || isSubmitting;
+      fine.appendChild(refreshBtn);
+    }
+    fine.appendChild(textButton('lbx-link', 'Réglages', openOptions));
+    root.appendChild(fine);
   }
 
   function render() {
@@ -707,184 +1142,24 @@
     if (!root) {
       return;
     }
-
     while (root.firstChild) {
       root.removeChild(root.firstChild);
     }
-
-    root.appendChild(ns.ui.createBorderBeam(resolveBeamTone(currentState)));
-    root.appendChild(buildHeader(currentState));
-
-    var body = el('div', 'lbx-seerr-body lbx-card-layer');
-
-    if (isLoading && !currentState) {
-      body.appendChild(el('div', 'lbx-seerr-skeleton'));
-      body.appendChild(el('p', 'lbx-seerr-note', 'Vérification sur Seerr / Jellyfin…'));
-      root.appendChild(body);
-      return;
-    }
-
-    if (!currentState) {
-      if (feedback) {
-        body.appendChild(el('div', 'lbx-seerr-alert lbx-seerr-alert-error', feedback.text));
-      }
-      var retryBtn = el('button', 'lbx-btn-tactile lbx-btn-full', 'Réessayer');
-      retryBtn.type = 'button';
-      retryBtn.addEventListener('click', function () {
-        loadMediaState(true);
-      });
-      body.appendChild(retryBtn);
-      root.appendChild(body);
-      return;
-    }
-
-    if (!currentState.configured) {
-      body.appendChild(
-        el('p', 'lbx-seerr-note', 'Configurez votre serveur Seerr ou Jellyfin pour demander ce film.')
-      );
-      var cfgBtn = ns.ui.createShimmerButton({
-        variant: 'indigo',
-        label: 'Configurer l’extension'
-      });
-      cfgBtn.addEventListener('click', function () {
-        ns.api.sendMessage({ type: MSG.OPEN_OPTIONS });
-      });
-      body.appendChild(cfgBtn);
-      root.appendChild(body);
-      return;
-    }
-
-    if (currentState.permissionMissing) {
-      body.appendChild(
-        el(
-          'div',
-          'lbx-seerr-alert lbx-seerr-alert-warn',
-          'Permission réseau requise pour accéder à ' + currentState.seerrUrl + '.'
-        )
-      );
-      var permBtn = ns.ui.createShimmerButton({
-        variant: 'indigo',
-        label: 'Autoriser dans les paramètres'
-      });
-      permBtn.addEventListener('click', function () {
-        ns.api.sendMessage({ type: MSG.OPEN_OPTIONS });
-      });
-      body.appendChild(permBtn);
-      root.appendChild(body);
-      return;
-    }
-
-    if (currentState.authMissing) {
-      body.appendChild(
-        el(
-          'div',
-          'lbx-seerr-alert lbx-seerr-alert-warn',
-          'Clé API Seerr manquante dans la configuration.'
-        )
-      );
-      var keyBtn = ns.ui.createShimmerButton({
-        variant: 'indigo',
-        label: 'Configurer la clé API'
-      });
-      keyBtn.addEventListener('click', function () {
-        ns.api.sendMessage({ type: MSG.OPEN_OPTIONS });
-      });
-      body.appendChild(keyBtn);
-      root.appendChild(body);
-      return;
-    }
-
-    if (currentState.seerrError && !currentState.jellyfin?.url && !currentState.mediaInfo) {
-      body.appendChild(el('div', 'lbx-seerr-alert lbx-seerr-alert-error', currentState.seerrError));
-      var errRetry = el('button', 'lbx-btn-tactile lbx-btn-full', 'Réessayer');
-      errRetry.type = 'button';
-      errRetry.addEventListener('click', function () {
-        loadMediaState(true);
-      });
-      body.appendChild(errRetry);
-      root.appendChild(body);
-      return;
-    }
-
-    var info = currentState.mediaInfo || {
-      status: MEDIA_STATUS.UNKNOWN,
-      status4k: MEDIA_STATUS.UNKNOWN,
-      requests: []
-    };
-    var servers = (currentState.services && currentState.services.servers) || [];
-    var has4kServer = servers.some(function (s) {
-      return Boolean(s.is4k);
-    });
-    var showDual4k =
-      has4kServer ||
-      (info.status4k && info.status4k !== MEDIA_STATUS.UNKNOWN) ||
-      Boolean(currentState.jellyfin && currentState.jellyfin.url4k);
-
-    var statusGroup = el('div', 'lbx-seerr-status-group');
-    if (showDual4k) {
-      var rowHd = el('div', 'lbx-seerr-status-row');
-      rowHd.appendChild(el('span', 'lbx-seerr-track-label', 'HD'));
-      rowHd.appendChild(ns.ui.createStatusPlate(info.status, { fullWidth: false }));
-      statusGroup.appendChild(rowHd);
-
-      var row4k = el('div', 'lbx-seerr-status-row');
-      row4k.appendChild(el('span', 'lbx-seerr-track-label', '4K'));
-      row4k.appendChild(ns.ui.createStatusPlate(info.status4k, { fullWidth: false }));
-      statusGroup.appendChild(row4k);
+    if (widgetStyle === 'ticket') {
+      renderBillet(root, currentState);
     } else {
-      statusGroup.appendChild(ns.ui.createStatusPlate(info.status, { fullWidth: true }));
+      renderNatif(root, currentState);
     }
-    body.appendChild(statusGroup);
+  }
 
-    if (currentState.jellyfin && ns.utils.isSafeHttpUrl(currentState.jellyfin.url)) {
-      var ctaStack = el('div', 'lbx-seerr-cta-stack');
-      var has4kLink = ns.utils.isSafeHttpUrl(currentState.jellyfin.url4k);
-
-      var watchBtn = ns.ui.createShimmerButton({
-        tag: 'a',
-        href: currentState.jellyfin.url,
-        variant: 'jellyfin',
-        label: has4kLink ? 'Regarder sur Jellyfin (HD)' : 'Regarder sur Jellyfin',
-        iconNode: svgIcon([
-          { tag: 'polygon', points: '6 4 20 12 6 20 6 4', fill: 'currentColor', stroke: 'none' }
-        ])
-      });
-      ctaStack.appendChild(watchBtn);
-
-      if (has4kLink) {
-        var watch4kBtn = ns.ui.createShimmerButton({
-          tag: 'a',
-          href: currentState.jellyfin.url4k,
-          variant: '4k',
-          label: 'Regarder en 4K',
-          iconNode: svgIcon([
-            { tag: 'polygon', points: '6 4 20 12 6 20 6 4', fill: 'currentColor', stroke: 'none' }
-          ])
-        });
-        ctaStack.appendChild(watch4kBtn);
-      }
-      body.appendChild(ctaStack);
+  async function loadWidgetStyle() {
+    try {
+      var res = await ns.api.sendMessage({ type: MSG.GET_CONFIG });
+      var s = res && res.settings && res.settings.widgetStyle;
+      widgetStyle = s === 'ticket' ? 'ticket' : 'native';
+    } catch (_err) {
+      // Keep the default style if the settings cannot be read.
     }
-
-    renderRequestsSection(body, currentState);
-    renderRequestForm(body, currentState);
-
-    if (currentState.seerrError) {
-      body.appendChild(el('div', 'lbx-seerr-alert lbx-seerr-alert-warn', currentState.seerrError));
-    }
-
-    if (feedback) {
-      body.appendChild(
-        el(
-          'div',
-          'lbx-seerr-alert ' +
-            (feedback.type === 'success' ? 'lbx-seerr-alert-success' : 'lbx-seerr-alert-error'),
-          feedback.text
-        )
-      );
-    }
-
-    root.appendChild(body);
   }
 
   async function loadMediaState(forceRefresh) {
@@ -909,6 +1184,9 @@
 
       if (res && res.ok) {
         currentState = res;
+        if (res.preferences && res.preferences.widgetStyle) {
+          widgetStyle = res.preferences.widgetStyle === 'ticket' ? 'ticket' : 'native';
+        }
       } else {
         feedback = {
           type: 'error',
@@ -932,7 +1210,7 @@
     }
 
     if (currentState.mediaType === 'tv' && !formSelection.allSeasons && formSelection.seasons.length === 0) {
-      feedback = { type: 'error', text: 'Sélectionnez au moins une saison à demander.' };
+      feedback = { type: 'error', text: 'Sélectionne au moins une saison à demander.' };
       render();
       return;
     }
@@ -977,7 +1255,8 @@
         if (res.state) {
           currentState = res.state;
         }
-        feedback = { type: 'success', text: 'Demande envoyée sur Seerr !' };
+        formOpen = false;
+        feedback = { type: 'success', text: 'Demande envoyée à Seerr.' };
       } else {
         feedback = {
           type: 'error',
@@ -1038,11 +1317,35 @@
     }
   }
 
-  function init() {
+  // Switch style without reloading the page when the setting changes.
+  // The new value is fetched through the background page, which strips secrets.
+  function watchStyleSetting() {
+    var ext = global.browser || global.chrome;
+    var key = ns.STORAGE_KEYS && ns.STORAGE_KEYS.settings;
+    if (!ext || !ext.storage || !ext.storage.onChanged || !key) {
+      return;
+    }
+    ext.storage.onChanged.addListener(function (changes, area) {
+      if (area !== 'local' || !changes[key]) {
+        return;
+      }
+      var before = widgetStyle;
+      loadWidgetStyle().then(function () {
+        if (widgetStyle !== before) {
+          render();
+        }
+      });
+    });
+  }
+
+  async function init() {
     currentFilm = extractFilmMeta();
     if (!currentFilm) {
       return;
     }
+
+    await loadWidgetStyle();
+    watchStyleSetting();
 
     if (!findMountTarget()) {
       var observer = new MutationObserver(function () {
