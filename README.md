@@ -78,19 +78,6 @@ Load the repository root as an unpacked extension in Chrome while working: `mani
 | `safari/` | Xcode project wrapping the extension for Safari. |
 | `scripts/` | Build and checks (Python 3, standard library only). |
 
-## Releases
-
-GitHub Actions builds the Chrome and Firefox packages on every push and pull request, and the Safari app on every push to `main`.
-
-To publish a release, bump `version` in `manifest.json`, commit, then push a matching tag:
-
-```bash
-git tag v1.1.0
-git push origin v1.1.0
-```
-
-The workflow checks that the tag matches the manifest, then attaches the three packages to a new GitHub release.
-
 ## License
 
 [MIT](LICENSE)
