@@ -185,13 +185,42 @@
       year = (ogText.match(/\((\d{4})\)\s*$/) || ['', ''])[1];
     }
 
+    var linked = readLinkedData(doc);
+
     return {
       tmdbId: tmdbId.trim(),
       mediaType: tmdbType && tmdbType.toLowerCase() === 'tv' ? 'tv' : 'movie',
       title: title,
       originalTitle: originalTitle,
-      year: year
+      year: year,
+      poster: linked.poster,
+      directors: linked.directors
     };
+  }
+
+  // Letterboxd describes the film in JSON-LD: its poster (on Letterboxd's own image server) and directors.
+  function readLinkedData(doc) {
+    var out = { poster: '', directors: [] };
+    var node = doc.querySelector('script[type="application/ld+json"]');
+    if (!node) {
+      return out;
+    }
+    try {
+      var data = JSON.parse(node.textContent.replace(/\/\*[\s\S]*?\*\//g, ''));
+      if (typeof data.image === 'string' && /^https:\/\/[a-z0-9.-]*ltrbxd\.com\//i.test(data.image)) {
+        out.poster = data.image;
+      }
+      var directors = Array.isArray(data.director) ? data.director : data.director ? [data.director] : [];
+      out.directors = directors
+        .map(function (d) {
+          return d && typeof d.name === 'string' ? d.name : '';
+        })
+        .filter(Boolean)
+        .slice(0, 2);
+    } catch (_err) {
+      // No structured data: the popup shows the film without poster.
+    }
+    return out;
   }
 
   // Review pages (/<member>/film/<slug>/, or /<n>/ for a rewatch) carry no TMDB id: read it from the
@@ -1601,7 +1630,15 @@
   // Summary for the toolbar popup: what this tab's film looks like on the user's servers.
   function tabSummary() {
     var film = currentFilm || {};
-    var base = { ok: true, film: { title: film.title || '', year: film.year || '' } };
+    var base = {
+      ok: true,
+      film: {
+        title: film.title || '',
+        year: film.year || '',
+        poster: film.poster || '',
+        directors: film.directors || []
+      }
+    };
     if (!currentState || setupState(currentState) || messageState(currentState)) {
       return Object.assign(base, { ready: false });
     }
@@ -1624,6 +1661,7 @@
         : null;
     return Object.assign(base, {
       ready: true,
+      available: Boolean(view.watch.length),
       headline: view.headline,
       server: view.serverLabel,
       detail: detail.join(' · '),
@@ -1641,6 +1679,17 @@
     ext.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
       if (message && message.type === MSG.TAB_SUMMARY) {
         sendResponse(tabSummary());
+      } else if (message && message.type === MSG.TAB_REQUEST) {
+        // The popup's Request button: same request as the widget's, with its current choices.
+        if (!currentState || isSubmitting || !buildView(currentState).form) {
+          sendResponse({ ok: false, error: 'This film cannot be requested from here.' });
+          return false;
+        }
+        handleSubmitRequest(syncFormDefaults(currentState)).then(function () {
+          var failed = feedback && feedback.type === 'error';
+          sendResponse(Object.assign(tabSummary(), failed ? { ok: false, error: feedback.text } : {}));
+        });
+        return true;
       }
       return false;
     });
