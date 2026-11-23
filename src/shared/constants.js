@@ -52,6 +52,7 @@
     defaultRadarrRootFolder: '',
     rememberLastProfile: true,
     expandAdvancedByDefault: false,
+    widgetStyle: 'native', // 'native' | 'ticket'
     enableTvSupport: true,
     lastUsedRadarr: null,
     lastUsedSonarr: null

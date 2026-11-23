@@ -13,6 +13,7 @@
     merged.seerrUrl = ns.utils.normalizeBaseUrl(merged.seerrUrl);
     merged.jellyfinUrl = ns.utils.normalizeBaseUrl(merged.jellyfinUrl);
     merged.authMode = merged.authMode === 'cookie' ? 'cookie' : 'apiKey';
+    merged.widgetStyle = merged.widgetStyle === 'ticket' ? 'ticket' : 'native';
     return merged;
   }
 
@@ -22,6 +23,7 @@
     next.seerrUrl = ns.utils.normalizeBaseUrl(next.seerrUrl);
     next.jellyfinUrl = ns.utils.normalizeBaseUrl(next.jellyfinUrl);
     next.authMode = next.authMode === 'cookie' ? 'cookie' : 'apiKey';
+    next.widgetStyle = next.widgetStyle === 'ticket' ? 'ticket' : 'native';
     next.seerrApiKey = next.seerrApiKey ? String(next.seerrApiKey).trim() : '';
     next.jellyfinApiKey = next.jellyfinApiKey ? String(next.jellyfinApiKey).trim() : '';
 
@@ -73,6 +75,7 @@
       defaultRadarrRootFolder: settings.defaultRadarrRootFolder,
       rememberLastProfile: Boolean(settings.rememberLastProfile),
       expandAdvancedByDefault: Boolean(settings.expandAdvancedByDefault),
+      widgetStyle: settings.widgetStyle === 'ticket' ? 'ticket' : 'native',
       enableTvSupport: Boolean(settings.enableTvSupport),
       lastUsedRadarr: settings.lastUsedRadarr || null,
       lastUsedSonarr: settings.lastUsedSonarr || null

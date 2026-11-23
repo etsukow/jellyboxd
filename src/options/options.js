@@ -34,6 +34,9 @@
   var defaultRadarrFolderSelect = document.getElementById('defaultRadarrRootFolder');
   var refreshServicesBtn = document.getElementById('refreshServicesBtn');
 
+  var widgetStyleSegmented = document.getElementById('widgetStyleSegmented');
+  var widgetStyleHelp = document.getElementById('widgetStyleHelp');
+
   var rememberLastProfileCb = document.getElementById('rememberLastProfile');
   var expandAdvancedCb = document.getElementById('expandAdvancedByDefault');
   var enableTvSupportCb = document.getElementById('enableTvSupport');
@@ -44,7 +47,13 @@
   var resetBtn = document.getElementById('resetBtn');
   var globalFeedback = document.getElementById('globalFeedback');
 
+  var WIDGET_STYLE_HELP = {
+    native: 'Le composant prolonge le panneau d’actions de Letterboxd : mêmes couleurs, mêmes lignes.',
+    ticket: 'Le composant prend la forme d’un ticket de cinéma, avec un talon détachable comme bouton.'
+  };
+
   var selectedAuthMode = 'apiKey';
+  var selectedWidgetStyle = 'native';
   var radarrServers = [];
   var resetArmed = false;
   var resetTimer = null;
@@ -100,6 +109,17 @@
     cookieSection.classList.toggle('hidden', !isCookie);
   }
 
+  function setWidgetStyle(style) {
+    selectedWidgetStyle = style === 'ticket' ? 'ticket' : 'native';
+    var buttons = widgetStyleSegmented.querySelectorAll('.lbx-seg-btn');
+    buttons.forEach(function (btn) {
+      var active = btn.getAttribute('data-widget') === selectedWidgetStyle;
+      btn.classList.toggle('lbx-seg-active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    widgetStyleHelp.textContent = WIDGET_STYLE_HELP[selectedWidgetStyle];
+  }
+
   function collectFormSettings() {
     return {
       seerrUrl: seerrUrlInput.value.trim(),
@@ -117,6 +137,7 @@
       defaultRadarrRootFolder: defaultRadarrFolderSelect.value || '',
       rememberLastProfile: Boolean(rememberLastProfileCb.checked),
       expandAdvancedByDefault: Boolean(expandAdvancedCb.checked),
+      widgetStyle: selectedWidgetStyle,
       enableTvSupport: Boolean(enableTvSupportCb.checked)
     };
   }
@@ -243,6 +264,7 @@
     jellyfinApiKeyInput.value = settings.jellyfinApiKey || '';
     rememberLastProfileCb.checked = Boolean(settings.rememberLastProfile);
     expandAdvancedCb.checked = Boolean(settings.expandAdvancedByDefault);
+    setWidgetStyle(settings.widgetStyle);
     enableTvSupportCb.checked = Boolean(settings.enableTvSupport);
 
     if (settings.seerrUserId !== null && settings.seerrUserId !== undefined) {
@@ -328,6 +350,14 @@
       return;
     }
     setAuthMode(btn.getAttribute('data-auth'));
+  });
+
+  widgetStyleSegmented.addEventListener('click', function (event) {
+    var btn = event.target.closest('.lbx-seg-btn');
+    if (!btn) {
+      return;
+    }
+    setWidgetStyle(btn.getAttribute('data-widget'));
   });
 
   toggleSeerrKeyBtn.addEventListener('click', function () {
