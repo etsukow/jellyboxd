@@ -1,7 +1,7 @@
 /* Jellyboxd widget on Letterboxd film pages.
    Two styles share the markup helpers in letterboxd.js:
    - .lbx-w-native  extends Letterboxd's actions panel;
-   - .lbx-w-ticket is a cinema ticket whose stub is the main button.
+   - .lbx-w-ticket is a paper cinema ticket whose stub is the main button.
    Every selector is scoped to #lbx-seerr-root so Letterboxd's own styles are never touched. */
 
 #lbx-seerr-root {
@@ -341,6 +341,40 @@
   accent-color: var(--lbx-green);
 }
 
+#lbx-seerr-root .lbx-n-input-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding-block: 7px 9px;
+  text-align: left;
+}
+
+#lbx-seerr-root input.lbx-n-input {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--lbx-panel-line);
+  border-radius: 3px;
+  outline: none;
+  box-shadow: none;
+  background: rgba(20, 24, 28, 0.45);
+  color: var(--lbx-panel-strong);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#lbx-seerr-root input.lbx-n-input::placeholder {
+  color: var(--lbx-panel-text);
+}
+
+#lbx-seerr-root input.lbx-n-input:focus {
+  border-color: var(--lbx-blue);
+}
+
 #lbx-seerr-root .lbx-n-foot {
   display: flex;
   flex-wrap: wrap;
@@ -353,22 +387,37 @@
   font-size: 11px;
 }
 
-/* ---------- Billet ---------- */
+/* ---------- Ticket : a paper cinema ticket, printed in a monospace face ---------- */
 
 #lbx-seerr-root .lbx-t {
-  --lbx-stub: var(--lbx-ticket);
-  --lbx-stub-ink: var(--lbx-muted);
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+  --tk: #e3e9ef;
+  --tk-stub: #b6c5d3;
+  --tk-ink: #121a21;
+  --tk-ink-2: color-mix(in srgb, var(--tk-ink) 78%, var(--tk));
+  --tk-rule: color-mix(in srgb, var(--tk-ink) 25%, var(--tk));
+  font-family: var(--lbx-mono);
+  -webkit-mask:
+    radial-gradient(circle 8px at 0 0, transparent 97%, #000) top left / 51% 51% no-repeat,
+    radial-gradient(circle 8px at 100% 0, transparent 97%, #000) top right / 51% 51% no-repeat,
+    radial-gradient(circle 8px at 0 100%, transparent 97%, #000) bottom left / 51% 51% no-repeat,
+    radial-gradient(circle 8px at 100% 100%, transparent 97%, #000) bottom right / 51% 51% no-repeat;
+  mask:
+    radial-gradient(circle 8px at 0 0, transparent 97%, #000) top left / 51% 51% no-repeat,
+    radial-gradient(circle 8px at 100% 0, transparent 97%, #000) top right / 51% 51% no-repeat,
+    radial-gradient(circle 8px at 0 100%, transparent 97%, #000) bottom left / 51% 51% no-repeat,
+    radial-gradient(circle 8px at 100% 100%, transparent 97%, #000) bottom right / 51% 51% no-repeat;
 }
 
 #lbx-seerr-root .lbx-t-go {
-  --lbx-stub: var(--lbx-green);
-  --lbx-stub-ink: #04220f;
+  --tk: #dcf7e5;
+  --tk-stub: #00e054;
+  --tk-ink: #10231a;
 }
 
 #lbx-seerr-root .lbx-t-ask {
-  --lbx-stub: var(--lbx-orange);
-  --lbx-stub-ink: #2a1400;
+  --tk: #ffe8d2;
+  --tk-stub: #ff8000;
+  --tk-ink: #2a1708;
 }
 
 #lbx-seerr-root .lbx-t-top {
@@ -377,12 +426,8 @@
   align-items: center;
   gap: 9px;
   padding: 12px 13px 13px;
-  border-radius: 6px 6px 0 0;
-  background: var(--lbx-ticket);
-  box-shadow:
-    inset 0 1px 0 var(--lbx-hair),
-    inset 1px 0 0 var(--lbx-hair),
-    inset -1px 0 0 var(--lbx-hair);
+  background: var(--tk);
+  color: var(--tk-ink);
   text-align: center;
 }
 
@@ -391,25 +436,20 @@
   align-self: stretch;
   justify-content: space-between;
   gap: 8px;
-  color: var(--lbx-muted);
-  font-family: var(--lbx-mono);
+  color: var(--tk-ink-2);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-#lbx-seerr-root .lbx-t-title {
-  color: #f2f5f7;
-  font-size: 19px;
+#lbx-seerr-root .lbx-t-head {
+  color: var(--tk-ink);
+  font-size: 17px;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.15;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-wrap: balance;
-}
-
-#lbx-seerr-root .lbx-t-by {
-  margin-top: -5px;
-  color: var(--lbx-muted);
-  font-size: 11px;
 }
 
 #lbx-seerr-root .lbx-t-fields {
@@ -417,8 +457,8 @@
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   align-self: stretch;
-  border-top: 1px solid var(--lbx-ticket-line);
-  border-bottom: 1px solid var(--lbx-ticket-line);
+  border-top: 1px solid var(--tk-rule);
+  border-bottom: 1px solid var(--tk-rule);
 }
 
 #lbx-seerr-root .lbx-t-cell {
@@ -431,13 +471,12 @@
 }
 
 #lbx-seerr-root .lbx-t-cell + .lbx-t-cell {
-  border-left: 1px solid var(--lbx-ticket-line);
+  border-left: 1px solid var(--tk-rule);
 }
 
 #lbx-seerr-root .lbx-t-cell small {
-  color: var(--lbx-dim);
-  font-family: var(--lbx-mono);
-  font-size: 9px;
+  color: var(--tk-ink-2);
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -445,28 +484,22 @@
 #lbx-seerr-root .lbx-t-cell b {
   max-width: 100%;
   overflow: hidden;
-  color: var(--lbx-ink);
-  font-family: var(--lbx-mono);
-  font-size: 11.5px;
+  color: var(--tk-ink);
+  font-size: 12.5px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-#lbx-seerr-root .lbx-t-cell b.lbx-t-state,
-#lbx-seerr-root .lbx-t-toned {
-  color: var(--lbx-tone);
-}
-
 #lbx-seerr-root .lbx-t-note {
-  color: var(--lbx-muted);
-  font-size: 11px;
+  color: var(--tk-ink-2);
+  font-size: 11.5px;
   line-height: 1.45;
 }
 
-#lbx-seerr-root .lbx-t-msg-error { color: #ffb4ab; }
-#lbx-seerr-root .lbx-t-msg-warn { color: #ffc27a; }
-#lbx-seerr-root .lbx-t-msg-success { color: #8ee8b0; }
+#lbx-seerr-root .lbx-t-msg-error { color: #a3261c; }
+#lbx-seerr-root .lbx-t-msg-warn { color: #8a4b00; }
+#lbx-seerr-root .lbx-t-msg-success { color: #1d6b3a; }
 
 #lbx-seerr-root .lbx-t-form {
   display: flex;
@@ -478,16 +511,20 @@
 #lbx-seerr-root .lbx-t-adv-field {
   display: flex;
   align-items: center;
+  align-self: stretch;
   justify-content: space-between;
   gap: 10px;
   padding: 5px 0 6px;
-  border-bottom: 1.5px dashed var(--lbx-ticket-perf);
-  color: var(--lbx-muted);
-  font-family: var(--lbx-mono);
+  border-bottom: 1.5px dashed color-mix(in srgb, var(--tk-ink) 35%, var(--tk));
+  color: var(--tk-ink-2);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
+}
+
+#lbx-seerr-root .lbx-t-field:focus-within {
+  border-bottom-color: var(--tk-ink);
 }
 
 #lbx-seerr-root .lbx-t-adv-field {
@@ -497,36 +534,56 @@
 
 #lbx-seerr-root .lbx-t-select {
   max-width: 70%;
-  color: var(--lbx-ink);
-  font-family: var(--lbx-mono);
+  color: var(--tk-ink);
   font-size: 11.5px;
   letter-spacing: 0;
   text-transform: none;
 }
 
-#lbx-seerr-root .lbx-t-field:hover .lbx-t-select {
-  color: #fff;
+#lbx-seerr-root .lbx-t-select select option {
+  background: #ffffff;
+  color: #121a21;
 }
 
-#lbx-seerr-root .lbx-t-select select option {
-  background: var(--lbx-ticket);
+#lbx-seerr-root input.lbx-t-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 72%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--tk-ink);
+  font-family: var(--lbx-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#lbx-seerr-root input.lbx-t-input::placeholder {
+  color: color-mix(in srgb, var(--tk-ink) 45%, var(--tk));
 }
 
 #lbx-seerr-root .lbx-t-adv-summary {
   padding: 7px 0 2px;
-  color: var(--lbx-muted);
-  font-size: 11px;
+  color: var(--tk-ink-2);
+  font-size: 11.5px;
   list-style: none;
   cursor: pointer;
-  transition: color var(--lbx-in) var(--lbx-ease);
 }
 
 #lbx-seerr-root .lbx-t-adv-summary::-webkit-details-marker {
   display: none;
-}
-
-#lbx-seerr-root .lbx-t-adv-summary:hover {
-  color: #fff;
 }
 
 #lbx-seerr-root .lbx-t-chips {
@@ -534,9 +591,13 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 5px;
-  font-family: inherit;
   letter-spacing: 0;
   text-transform: none;
+}
+
+#lbx-seerr-root .lbx-t-chip {
+  border-color: color-mix(in srgb, var(--tk-ink) 30%, var(--tk));
+  color: var(--tk-ink);
 }
 
 #lbx-seerr-root .lbx-t-links {
@@ -544,29 +605,30 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 12px;
-  color: var(--lbx-muted);
-  font-size: 11px;
+  color: var(--tk-ink-2);
+  font-size: 11.5px;
 }
 
 #lbx-seerr-root .lbx-t-link {
   text-decoration: underline;
-  text-decoration-color: var(--lbx-hair-strong);
+  text-decoration-color: color-mix(in srgb, var(--tk-ink) 40%, var(--tk));
   text-underline-offset: 3px;
 }
 
 #lbx-seerr-root .lbx-t-link:hover {
+  color: var(--tk-ink);
   text-decoration-color: currentColor;
 }
 
 #lbx-seerr-root .lbx-t-danger:hover {
-  color: var(--lbx-danger);
+  color: #a3261c;
 }
 
-/* Perforation: dashed tear line with two notches cut in the page colour. */
+/* Perforation: dashed tear line, notches cut in the page colour. */
 #lbx-seerr-root .lbx-t-perf {
   position: relative;
   height: 14px;
-  background: linear-gradient(var(--lbx-ticket) 50%, var(--lbx-stub) 50%);
+  background: linear-gradient(var(--tk) 50%, var(--tk-stub) 50%);
 }
 
 #lbx-seerr-root .lbx-t-perf::before {
@@ -575,7 +637,7 @@
   left: 12px;
   right: 12px;
   top: 50%;
-  border-top: 1.5px dashed var(--lbx-ticket-perf);
+  border-top: 1.5px dashed color-mix(in srgb, var(--tk-ink) 40%, var(--tk));
 }
 
 #lbx-seerr-root .lbx-t-perf::after {
@@ -598,20 +660,18 @@
   margin: 0;
   padding: 0 12px;
   border: 0;
-  border-radius: 0 0 6px 6px;
-  background: var(--lbx-stub);
-  color: var(--lbx-stub-ink);
+  border-radius: 0;
+  background: var(--tk-stub);
+  color: var(--tk-ink);
   font-family: var(--lbx-mono);
   font-size: 11.5px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: 0.12em;
   text-decoration: none;
   text-transform: uppercase;
   cursor: pointer;
-  transition:
-    background-color var(--lbx-out) var(--lbx-ease),
-    color var(--lbx-out) var(--lbx-ease);
+  transition: background-color var(--lbx-out) var(--lbx-ease);
 }
 
 #lbx-seerr-root .lbx-t-stub svg {
@@ -621,12 +681,12 @@
 }
 
 #lbx-seerr-root .lbx-t-stub:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--lbx-stub) 88%, white);
+  background: color-mix(in srgb, var(--tk-stub) 85%, white);
   transition-duration: var(--lbx-in);
 }
 
 #lbx-seerr-root .lbx-t-stub:active:not(:disabled) {
-  background: color-mix(in srgb, var(--lbx-stub) 86%, black);
+  background: color-mix(in srgb, var(--tk-stub) 88%, black);
   transition-duration: var(--lbx-press);
 }
 
@@ -635,21 +695,8 @@
   cursor: default;
 }
 
-#lbx-seerr-root .lbx-t-plain .lbx-t-stub {
-  box-shadow:
-    inset 0 -1px 0 var(--lbx-hair),
-    inset 1px 0 0 var(--lbx-hair),
-    inset -1px 0 0 var(--lbx-hair);
-}
-
-#lbx-seerr-root .lbx-t-plain .lbx-t-stub:hover:not(:disabled) {
-  background: #252e36;
-  color: var(--lbx-ink);
-}
-
-#lbx-seerr-root .lbx-t-stub.lbx-t-armed,
-#lbx-seerr-root .lbx-t-plain .lbx-t-stub.lbx-t-armed:hover {
-  color: var(--lbx-danger);
+#lbx-seerr-root .lbx-t-stub.lbx-t-armed {
+  color: #a3261c;
 }
 
 #lbx-seerr-root .lbx-t-fine {

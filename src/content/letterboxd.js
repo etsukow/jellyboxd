@@ -19,8 +19,12 @@
   var feedback = null; // { type: 'success'|'error', text: string }
   var confirmCancelId = null;
   var confirmTimer = null;
-  var widgetStyle = 'native'; // 'native' | 'ticket' (user setting "Widget style")
-  var formOpen = false; // request form is folded when the film can already be watched
+  var widgetStyle = 'ticket'; // 'native' | 'ticket' (user setting "Widget style")
+  var formOpen = false;
+  var setupPending = false; // the sign-in window was opened from this page
+  var forceAddress = false; // "Change server" was clicked
+  var setupDraft = ''; // what the user typed in the address field
+  var setupError = null; // request form is folded when the film can already be watched
 
   var formSelection = {
     serverId: null,
@@ -52,6 +56,8 @@
   STATUS_SHORT[MEDIA_STATUS.DELETED] = 'Missing';
 
   var ICONS = {
+    arrow: [{ d: 'M5 12h14M13 6l6 6-6 6' }],
+    lock: [{ tag: 'rect', x: '5', y: '11', width: '14', height: '9', rx: '2' }, { d: 'M8 11V8a4 4 0 0 1 8 0v3' }],
     play: [{ tag: 'polygon', points: '6 4 20 12 6 20 6 4', fill: 'currentColor', stroke: 'none' }],
     plus: [
       { tag: 'line', x1: '12', y1: '5', x2: '12', y2: '19' },
@@ -104,17 +110,38 @@
     return el('span', 'lbx-dot lbx-tone-' + (tone || 'unknown'));
   }
 
-  function formatRuntime(minutes) {
-    var m = Number(minutes);
-    if (!m || m <= 0) {
+  // "12 Nov", or "12 Nov 2024" for another year.
+  function formatDate(iso) {
+    var d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d.getTime())) {
       return '';
     }
-    if (m < 60) {
-      return m + 'm';
+    var opts = { day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== new Date().getFullYear()) {
+      opts.year = 'numeric';
     }
-    var h = Math.floor(m / 60);
-    var rest = m % 60;
-    return h + 'h ' + (rest < 10 ? '0' : '') + rest + 'm';
+    return d.toLocaleDateString('en-GB', opts);
+  }
+
+  // "5 min ago", "2 h ago", "3 days ago", then a date.
+  function relativeTime(iso) {
+    var d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d.getTime())) {
+      return '';
+    }
+    var minutes = Math.round((Date.now() - d.getTime()) / 60000);
+    if (minutes < 1) {
+      return 'just now';
+    }
+    if (minutes < 60) {
+      return minutes + ' min ago';
+    }
+    var hours = Math.round(minutes / 60);
+    if (hours < 24) {
+      return hours + ' h ago';
+    }
+    var days = Math.round(hours / 24);
+    return days < 14 ? days + (days === 1 ? ' day ago' : ' days ago') : formatDate(iso);
   }
 
   function extractFilmMeta() {
@@ -138,30 +165,22 @@
       return null;
     }
 
-    var titleNode = document.querySelector('h1.headline-1, .film-title-wrapper h1, h1');
-    var title = titleNode ? titleNode.textContent.trim() : '';
+    // The page's first <h1> is the site logo: read the film's own heading, then the share title.
+    var titleNode = document.querySelector('h1.primaryname, .production-masthead h1.headline-1, .film-title-wrapper h1');
+    var title = titleNode ? titleNode.textContent.replace(/\s+/g, ' ').trim() : '';
+    var ogTitle = document.querySelector('meta[property="og:title"]');
+    var ogText = ogTitle ? ogTitle.getAttribute('content') || '' : '';
     if (!title) {
-      var ogTitle = document.querySelector('meta[property="og:title"]');
-      title = ogTitle ? ogTitle.getAttribute('content') || '' : document.title;
+      title = ogText.replace(/\s*\(\d{4}\)\s*$/, '').trim();
     }
 
     var origNode = document.querySelector('.originalname, h2.originalname');
     var originalTitle = origNode ? origNode.textContent.trim() : '';
 
-    var yearNode = document.querySelector('.releaseyear a, .film-header-group .number a');
-    var year = yearNode ? yearNode.textContent.trim() : '';
-
-    // Director and runtime are only used by the ticket style.
-    var directorNode = document.querySelector('.credits a[href*="/director/"], a.contributor[href*="/director/"]');
-    var director = directorNode ? directorNode.textContent.replace(/\s+/g, ' ').trim() : '';
-
-    var runtime = '';
-    var footer = document.querySelector('.text-footer');
-    if (footer) {
-      var rt = footer.textContent.match(/(\d+)\s*mins?/i);
-      if (rt) {
-        runtime = formatRuntime(rt[1]);
-      }
+    var yearNode = document.querySelector('.releasedate a, .releasedate, .releaseyear a, a[href*="/films/year/"]');
+    var year = yearNode ? (yearNode.textContent.match(/\d{4}/) || [''])[0] : '';
+    if (!year) {
+      year = (ogText.match(/\((\d{4})\)\s*$/) || ['', ''])[1];
     }
 
     return {
@@ -169,9 +188,7 @@
       mediaType: tmdbType && tmdbType.toLowerCase() === 'tv' ? 'tv' : 'movie',
       title: title,
       originalTitle: originalTitle,
-      year: year,
-      director: director,
-      runtime: runtime
+      year: year
     };
   }
 
@@ -357,6 +374,9 @@
       requests: [],
       form: null,
       seerrUrl: seerrUrl,
+      quality: (state.details && state.details.quality) || '',
+      addedAt: (state.details && state.details.addedAt) || null,
+      headline: '',
       serverLabel: jfConf || jf.source === 'jellyfin-direct' ? 'Jellyfin' : 'Seerr'
     };
 
@@ -399,6 +419,11 @@
       }
       view.requests.push({
         id: req.id,
+        createdAt: req.createdAt || null,
+        profileName: req.profileName || '',
+        requestedBy: req.requestedByName || '',
+        statusLabel: meta.label,
+        status: req.status,
         is4k: Boolean(req.is4k),
         tone: meta.tone,
         title: 'Request ' + (req.is4k ? '4K ' : '') + meta.label.charAt(0).toLowerCase() + meta.label.slice(1),
@@ -417,6 +442,20 @@
     if (view.status && !view.openSeerr && regular.length === 1) {
       view.status.sub = regular[0].sub;
       regular[0].merged = true;
+    }
+
+    // Ticket headline: the screening, never the film's title (Letterboxd already shows it).
+    var regularRequest = view.requests.filter(function (r) {
+      return !r.is4k;
+    })[0];
+    if (view.watch.length > 0 || view.openSeerr) {
+      view.headline = st === MEDIA_STATUS.PARTIAL ? 'Partly showing' : 'Now showing';
+    } else if (st === MEDIA_STATUS.PROCESSING || st === MEDIA_STATUS.PENDING || regularRequest) {
+      view.headline = 'Coming soon';
+    } else if (st === MEDIA_STATUS.BLOCKLISTED) {
+      view.headline = 'Not showing';
+    } else {
+      view.headline = 'Not showing yet';
     }
 
     // 5. Request form (same conditions as before the redesign).
@@ -703,7 +742,87 @@
     loadMediaState(true);
   }
 
-  // Messages shown instead of the film (setup, permission, errors).
+  // Setup from the film page. Only the Seerr address is typed here; signing in happens in an
+  // extension window, where scripts of the page cannot read what is typed.
+  function setupState(state) {
+    if (!state) {
+      return null;
+    }
+    var need = !state.configured
+      ? 'address'
+      : state.permissionMissing
+        ? 'permission'
+        : state.signInRequired
+          ? 'signin'
+          : state.authMissing
+            ? 'apikey'
+            : null;
+    if (!need) {
+      setupPending = false;
+      forceAddress = false;
+      return null;
+    }
+    if (forceAddress || (need === 'address' && !setupPending)) {
+      return { step: 'address', url: setupDraft || state.seerrUrl || '' };
+    }
+    var text = setupPending
+      ? 'Finish signing in in the Jellyboxd window.'
+      : need === 'permission'
+        ? 'Allow Jellyboxd to reach your Seerr.'
+        : need === 'signin'
+          ? 'Your Seerr session ended. Sign in again.'
+          : 'Add your Seerr API key.';
+    return { step: 'continue', text: text, actionLabel: setupPending ? 'Open it again' : 'Sign in', url: state.seerrUrl || setupDraft };
+  }
+
+  function startSetup(url) {
+    setupError = null;
+    ns.api
+      .sendMessage({ type: MSG.START_SETUP, payload: { seerrUrl: url } })
+      .then(function (res) {
+        if (res && res.ok) {
+          setupPending = true;
+          forceAddress = false;
+        } else {
+          setupError = (res && res.error) || 'Enter your Seerr address.';
+        }
+        render();
+      })
+      .catch(function (err) {
+        setupError = (err && err.message) || 'Could not open the sign-in window.';
+        render();
+      });
+  }
+
+  function changeServer() {
+    setupPending = false;
+    forceAddress = true;
+    setupError = null;
+    render();
+  }
+
+  function setupInput(className) {
+    var input = el('input', className);
+    input.type = 'text';
+    input.inputMode = 'url';
+    input.autocomplete = 'url';
+    input.spellcheck = false;
+    input.placeholder = 'seerr.example.com';
+    input.value = setupDraft;
+    input.setAttribute('aria-label', 'Seerr address');
+    input.addEventListener('input', function () {
+      setupDraft = input.value;
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        startSetup(input.value);
+      }
+    });
+    return input;
+  }
+
+  // Messages shown instead of the film (loading, errors).
   function messageState(state) {
     if (isLoading && !state) {
       return { kind: 'loading', text: 'Checking on Seerr / Jellyfin…' };
@@ -713,27 +832,6 @@
         kind: 'error',
         text: (feedback && feedback.text) || 'Could not fetch the information.',
         action: { label: 'Retry', onClick: refresh }
-      };
-    }
-    if (!state.configured) {
-      return {
-        kind: 'info',
-        text: 'Set up your Seerr or Jellyfin server to see whether this film is available.',
-        action: { label: 'Set up the extension', onClick: openOptions }
-      };
-    }
-    if (state.permissionMissing) {
-      return {
-        kind: 'warn',
-        text: 'Network permission required to access ' + state.seerrUrl + '.',
-        action: { label: 'Allow in settings', onClick: openOptions }
-      };
-    }
-    if (state.authMissing) {
-      return {
-        kind: 'warn',
-        text: 'Seerr API key missing from the settings.',
-        action: { label: 'Set up the API key', onClick: openOptions }
       };
     }
     if (state.seerrError && !(state.jellyfin && state.jellyfin.url) && !state.mediaInfo) {
@@ -802,8 +900,49 @@
     return row;
   }
 
+  function renderNativeSetup(panel, setup) {
+    if (!setupDraft && setup.url) {
+      setupDraft = setup.url;
+    }
+    if (setup.step === 'address') {
+      panel.appendChild(nStack('unknown', 'Connect Jellyboxd', 'Enter your Seerr address to see this film on your server.'));
+      var row = el('label', 'lbx-n-row lbx-n-input-row');
+      row.appendChild(el('span', 'lbx-n-sub', 'Seerr address'));
+      var input = setupInput('lbx-n-input');
+      row.appendChild(input);
+      panel.appendChild(row);
+      var go = nAction('button', 'Continue', 'arrow', null);
+      go.addEventListener('click', function () {
+        startSetup(input.value);
+      });
+      panel.appendChild(go);
+    } else {
+      panel.appendChild(nStack('pending', setup.text, ''));
+      var again = nAction('button', setup.actionLabel, 'lock', null);
+      again.addEventListener('click', function () {
+        startSetup(setup.url);
+      });
+      panel.appendChild(again);
+    }
+    if (setupError) {
+      panel.appendChild(nRow('lbx-n-msg lbx-n-msg-error', setupError));
+    }
+    var foot = el('div', 'lbx-n-foot');
+    if (setup.step === 'continue') {
+      foot.appendChild(textButton('lbx-link', 'Change server', changeServer));
+    }
+    foot.appendChild(textButton('lbx-link', 'Settings', openOptions));
+    panel.appendChild(foot);
+  }
+
   function renderNative(root, state) {
     var panel = el('div', 'lbx-n');
+    var setup = setupState(state);
+    if (setup) {
+      renderNativeSetup(panel, setup);
+      root.appendChild(panel);
+      return;
+    }
     var msg = messageState(state);
 
     if (msg) {
@@ -819,11 +958,22 @@
 
     var view = buildView(state);
 
-    view.watch.forEach(function (w) {
+    var watchSub = [view.quality, view.addedAt ? 'added ' + formatDate(view.addedAt) : ''].filter(Boolean).join(' · ');
+    view.watch.forEach(function (w, idx) {
       var a = nAction('a', w.label, 'play', 'lbx-n-watch');
       a.href = w.url;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
+      if (idx === 0 && watchSub) {
+        // Quality and date added, under the main watch link.
+        a.classList.add('lbx-n-stack');
+        var label = a.lastChild;
+        var lineNode = el('span', 'lbx-n-line');
+        lineNode.appendChild(a.firstChild);
+        lineNode.appendChild(label);
+        a.appendChild(lineNode);
+        a.appendChild(el('span', 'lbx-n-sub', watchSub));
+      }
       panel.appendChild(a);
     });
 
@@ -1003,42 +1153,132 @@
     return plan;
   }
 
+  function ticketStub(stub) {
+    var node;
+    if (stub.url) {
+      node = externalLink('lbx-t-stub', null, stub.url);
+    } else {
+      node = el('button', 'lbx-t-stub');
+      node.type = 'button';
+      node.disabled = Boolean(stub.disabled);
+      if (stub.onClick) {
+        node.addEventListener('click', stub.onClick);
+      }
+    }
+    if (stub.armed) {
+      node.classList.add('lbx-t-armed');
+    }
+    if (stub.iconBefore) {
+      node.appendChild(icon(stub.iconBefore));
+    }
+    node.appendChild(el('span', null, stub.label));
+    if (stub.iconAfter) {
+      node.appendChild(icon(stub.iconAfter));
+    }
+    return node;
+  }
+
+  function ticketShell(kind, serverLabel, headline) {
+    var ticket = el('div', 'lbx-t lbx-t-' + kind);
+    var top = el('div', 'lbx-t-top');
+    var line = el('div', 'lbx-t-line');
+    line.appendChild(el('span', null, serverLabel));
+    line.appendChild(el('span', null, 'Jellyboxd'));
+    top.appendChild(line);
+    top.appendChild(el('div', 'lbx-t-head', headline));
+    ticket.appendChild(top);
+    return { ticket: ticket, top: top };
+  }
+
+  function ticketClose(root, shell, stubNode, fineItems) {
+    var perf = el('div', 'lbx-t-perf');
+    perf.setAttribute('aria-hidden', 'true');
+    shell.ticket.appendChild(perf);
+    shell.ticket.appendChild(stubNode);
+    root.appendChild(shell.ticket);
+    var fine = el('div', 'lbx-t-fine');
+    fineItems.forEach(function (n) {
+      fine.appendChild(n);
+    });
+    root.appendChild(fine);
+  }
+
+  function renderTicketSetup(root, setup) {
+    if (!setupDraft && setup.url) {
+      setupDraft = setup.url;
+    }
+    var shell = ticketShell('ask', 'Seerr', setup.step === 'address' ? 'Box office closed' : 'Almost open');
+    var input = null;
+    if (setup.step === 'address') {
+      var field = el('label', 'lbx-t-field');
+      field.appendChild(el('span', null, 'Address'));
+      input = setupInput('lbx-t-input');
+      field.appendChild(input);
+      shell.top.appendChild(field);
+      shell.top.appendChild(el('div', 'lbx-t-note', 'Enter your Seerr address to see this film on your server.'));
+    } else {
+      shell.top.appendChild(el('div', 'lbx-t-note', setup.text));
+    }
+    if (setupError) {
+      shell.top.appendChild(el('div', 'lbx-t-note lbx-t-msg-error', setupError));
+    }
+    var stub = setup.step === 'address'
+      ? { label: 'Continue', onClick: function () { startSetup(input.value); } }
+      : { label: setup.actionLabel, iconBefore: 'lock', onClick: function () { startSetup(setup.url); } };
+    var fine = [];
+    if (setup.step === 'continue') {
+      fine.push(textButton('lbx-link', 'Change server', changeServer));
+    }
+    fine.push(textButton('lbx-link', 'Settings', openOptions));
+    ticketClose(root, shell, ticketStub(stub), fine);
+  }
+
   function renderTicket(root, state) {
-    var film = currentFilm || {};
+    var setup = setupState(state);
+    if (setup) {
+      renderTicketSetup(root, setup);
+      return;
+    }
     var msg = messageState(state);
     var view = msg ? null : buildView(state);
     var plan = planTicket(state, view, msg);
     var stub = plan.stub;
+    var shell = ticketShell(
+      stub.kind,
+      view ? view.serverLabel : 'Jellyboxd',
+      msg ? (msg.kind === 'loading' ? 'Checking…' : 'Projector trouble') : view.headline
+    );
+    var top = shell.top;
 
-    var ticket = el('div', 'lbx-t lbx-t-' + stub.kind);
-    var top = el('div', 'lbx-t-top');
-
-    var line = el('div', 'lbx-t-line');
-    line.appendChild(el('span', null, view ? view.serverLabel : 'Jellyboxd'));
-    line.appendChild(el('span', null, film.tmdbId ? 'TMDB ' + film.tmdbId : ''));
-    top.appendChild(line);
-    top.appendChild(el('div', 'lbx-t-title', film.title || ''));
-    if (film.director) {
-      top.appendChild(el('div', 'lbx-t-by', film.director));
-    }
-
-    // Printed fields, like the screen / row / seat boxes of a real ticket.
+    // Printed fields: only what Letterboxd does not already show.
     var fields = [];
-    if (film.year) {
-      fields.push({ label: 'Year', value: film.year });
-    }
-    if (film.runtime) {
-      fields.push({ label: 'Runtime', value: film.runtime });
-    }
-    if (view && view.status) {
-      fields.push({ label: 'Status', value: view.status.short, tone: view.status.tone });
+    var request = null;
+    if (view) {
+      request = view.requests.filter(function (r) {
+        return !r.is4k;
+      })[0] || null;
+      if (view.watch.length > 0 || view.openSeerr) {
+        if (view.quality) {
+          fields.push(['Quality', view.quality]);
+        }
+        if (view.addedAt) {
+          fields.push(['Added', formatDate(view.addedAt)]);
+        }
+      } else if (request) {
+        if (request.profileName) {
+          fields.push(['Profile', request.profileName]);
+        }
+        if (request.createdAt) {
+          fields.push(['Requested', relativeTime(request.createdAt)]);
+        }
+      }
     }
     if (fields.length) {
       var grid = el('div', 'lbx-t-fields');
       fields.forEach(function (f) {
         var cell = el('div', 'lbx-t-cell');
-        cell.appendChild(el('small', null, f.label));
-        cell.appendChild(el('b', f.tone ? 'lbx-t-state lbx-tone-' + f.tone : null, f.value));
+        cell.appendChild(el('small', null, f[0]));
+        cell.appendChild(el('b', null, f[1]));
         grid.appendChild(cell);
       });
       top.appendChild(grid);
@@ -1047,14 +1287,18 @@
     if (msg) {
       top.appendChild(el('div', 'lbx-t-note lbx-t-msg-' + msg.kind, msg.text));
     } else {
-      if (view.status && view.status.sub) {
-        top.appendChild(el('div', 'lbx-t-note', view.status.sub));
+      if (request && !view.watch.length && !view.openSeerr) {
+        var by = request.requestedBy ? 'Requested by ' + request.requestedBy : 'Requested';
+        var st = state.mediaInfo && state.mediaInfo.status;
+        top.appendChild(
+          el('div', 'lbx-t-note', st === MEDIA_STATUS.PROCESSING ? by + ', downloading now.' : by + ' · ' + request.statusLabel.toLowerCase() + '.')
+        );
       }
       view.extra.forEach(function (x) {
-        top.appendChild(el('div', 'lbx-t-note lbx-t-toned lbx-tone-' + x.tone, x.text));
+        top.appendChild(el('div', 'lbx-t-note', x.text));
       });
       view.requests.forEach(function (r) {
-        if (!r.merged) {
+        if (r !== request) {
           top.appendChild(el('div', 'lbx-t-note', r.title + (r.sub ? ' · ' + r.sub : '')));
         }
       });
@@ -1094,47 +1338,17 @@
       top.appendChild(linkRow);
     }
 
-    ticket.appendChild(top);
-    var perf = el('div', 'lbx-t-perf');
-    perf.setAttribute('aria-hidden', 'true');
-    ticket.appendChild(perf);
-
-    var stubNode;
-    if (stub.url) {
-      stubNode = externalLink('lbx-t-stub', null, stub.url);
-    } else {
-      stubNode = el('button', 'lbx-t-stub');
-      stubNode.type = 'button';
-      stubNode.disabled = Boolean(stub.disabled);
-      if (stub.onClick) {
-        stubNode.addEventListener('click', stub.onClick);
-      }
-    }
-    if (stub.armed) {
-      stubNode.classList.add('lbx-t-armed');
-    }
-    if (stub.iconBefore) {
-      stubNode.appendChild(icon(stub.iconBefore));
-    }
-    stubNode.appendChild(el('span', null, stub.label));
-    if (stub.iconAfter) {
-      stubNode.appendChild(icon(stub.iconAfter));
-    }
-    ticket.appendChild(stubNode);
-    root.appendChild(ticket);
-
-    // Fine print under the ticket.
-    var fine = el('div', 'lbx-t-fine');
+    var fine = [];
     if (view && view.seerrUrl && stub.url !== view.seerrUrl) {
-      fine.appendChild(externalLink('lbx-link', 'Open in Seerr', view.seerrUrl));
+      fine.push(externalLink('lbx-link', 'Open in Seerr', view.seerrUrl));
     }
     if (!msg) {
       var refreshBtn = textButton('lbx-link', isLoading ? 'Refreshing…' : 'Refresh', refresh);
       refreshBtn.disabled = isLoading || isSubmitting;
-      fine.appendChild(refreshBtn);
+      fine.push(refreshBtn);
     }
-    fine.appendChild(textButton('lbx-link', 'Settings', openOptions));
-    root.appendChild(fine);
+    fine.push(textButton('lbx-link', 'Settings', openOptions));
+    ticketClose(root, shell, ticketStub(stub), fine);
   }
 
   function render() {
@@ -1156,7 +1370,7 @@
     try {
       var res = await ns.api.sendMessage({ type: MSG.GET_CONFIG });
       var s = res && res.settings && res.settings.widgetStyle;
-      widgetStyle = s === 'ticket' ? 'ticket' : 'native';
+      widgetStyle = s === 'native' ? 'native' : 'ticket';
     } catch (_err) {
       // Keep the default style if the settings cannot be read.
     }
@@ -1185,7 +1399,7 @@
       if (res && res.ok) {
         currentState = res;
         if (res.preferences && res.preferences.widgetStyle) {
-          widgetStyle = res.preferences.widgetStyle === 'ticket' ? 'ticket' : 'native';
+          widgetStyle = res.preferences.widgetStyle === 'native' ? 'native' : 'ticket';
         }
       } else {
         feedback = {
@@ -1317,24 +1531,74 @@
     }
   }
 
-  // Switch style without reloading the page when the setting changes.
-  // The new value is fetched through the background page, which strips secrets.
-  function watchStyleSetting() {
+  // Settings changed (style, server, a finished sign-in): redraw and reload the film's state.
+  // The new values come through the background page, which strips secrets.
+  function watchSettings() {
     var ext = global.browser || global.chrome;
     var key = ns.STORAGE_KEYS && ns.STORAGE_KEYS.settings;
     if (!ext || !ext.storage || !ext.storage.onChanged || !key) {
       return;
     }
+    var timer = null;
     ext.storage.onChanged.addListener(function (changes, area) {
       if (area !== 'local' || !changes[key]) {
         return;
       }
-      var before = widgetStyle;
-      loadWidgetStyle().then(function () {
-        if (widgetStyle !== before) {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        loadWidgetStyle().then(function () {
           render();
-        }
-      });
+          loadMediaState(true);
+        });
+      }, 300);
+    });
+  }
+
+  // Summary for the toolbar popup: what this tab's film looks like on the user's servers.
+  function tabSummary() {
+    var film = currentFilm || {};
+    var base = { ok: true, film: { title: film.title || '', year: film.year || '' } };
+    if (!currentState || setupState(currentState) || messageState(currentState)) {
+      return Object.assign(base, { ready: false });
+    }
+    var view = buildView(currentState);
+    var detail = [];
+    if (view.watch.length || view.openSeerr) {
+      if (view.quality) {
+        detail.push(view.quality);
+      }
+      if (view.addedAt) {
+        detail.push('added ' + formatDate(view.addedAt));
+      }
+    } else if (view.status) {
+      detail.push(view.status.text);
+    }
+    var primary = view.watch[0]
+      ? { label: view.watch[0].label, url: view.watch[0].url, kind: 'go' }
+      : view.openSeerr
+        ? { label: 'Open in Seerr', url: view.openSeerr, kind: 'go' }
+        : null;
+    return Object.assign(base, {
+      ready: true,
+      headline: view.headline,
+      server: view.serverLabel,
+      detail: detail.join(' · '),
+      primary: primary,
+      seerrUrl: view.seerrUrl,
+      canRequest: Boolean(view.form)
+    });
+  }
+
+  function answerPopup() {
+    var ext = global.browser || global.chrome;
+    if (!ext || !ext.runtime || !ext.runtime.onMessage) {
+      return;
+    }
+    ext.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
+      if (message && message.type === MSG.TAB_SUMMARY) {
+        sendResponse(tabSummary());
+      }
+      return false;
     });
   }
 
@@ -1345,7 +1609,8 @@
     }
 
     await loadWidgetStyle();
-    watchStyleSetting();
+    watchSettings();
+    answerPopup();
 
     if (!findMountTarget()) {
       var observer = new MutationObserver(function () {
