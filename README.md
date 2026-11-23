@@ -1,66 +1,94 @@
-# Jellyboxd — Letterboxd × Seerr / Jellyfin
+# Jellyboxd
 
-Extension navigateur Manifest V3 (Chrome, Edge, Brave, Firefox et Safari) permettant de connecter votre instance **Seerr / Jellyseerr / Overseerr** et votre serveur **Jellyfin** directement aux pages de films **Letterboxd**.
+A browser extension that brings your **Seerr** (Jellyseerr, Overseerr) and **Jellyfin** servers to **Letterboxd** film pages: see whether a film is on your server, play it, or request it in one click.
 
-## Fonctionnalités
+Works on Chrome, Edge, Brave, Firefox (128+) and Safari (macOS). Manifest V3, no build step, no third-party dependency.
 
-- **Statut en direct sur Letterboxd** : affiche dans la colonne latérale d’un film s’il est *Disponible*, *En cours*, *En attente*, *Partiel*, *Bloqué* ou *Non disponible* (avec distinction **HD** et **4K** si vous avez un serveur 4K).
-- **Lien direct « Regarder sur Jellyfin »** : ouvre immédiatement la fiche du film dans votre lecteur web Jellyfin (HD et 4K si disponibles).
-- **Demande en un clic avec choix du profil de qualité** :
-  - Sélection du serveur Radarr (HD ou 4K) ou Sonarr (pour les mini-séries référencées sur Letterboxd).
-  - Sélection dynamique du **profil de qualité** (*HD-1080p*, *Ultra-HD*, etc.).
-  - **Options avancées** dépliables : dossier racine (avec espace disque libre), tags Radarr/Sonarr et sélection des saisons pour les séries.
-  - Suivi et annulation des demandes en cours directement depuis Letterboxd.
-- **Mémorisation intelligente** : retient votre profil de qualité préféré ou applique vos valeurs par défaut.
+> The extension's interface is currently in French. English strings are welcome as a contribution.
 
-## Installation
+## Features
 
-### Chrome / Edge / Brave (Chromium)
+- **Availability on the film page**: available, downloading, pending, partially available or missing, read from Seerr (and from Jellyfin directly when it is configured).
+- **Watch on Jellyfin**: when the film is on your server, the widget shows a single "watch" link that opens it in Jellyfin's web player.
+- **Request in one click**: pick the server and the quality profile, both loaded from your Radarr or Sonarr through Seerr. Advanced options cover the root folder, tags and seasons.
+- **4K, only if you use it**: when a server is flagged as 4K in Seerr, the widget offers a separate 4K request. Other setups never see it.
+- **Follow and cancel requests** from Letterboxd.
+- **Seerr only**: without a Jellyfin URL, the widget uses the playback link Seerr provides, or links to the film in Seerr.
+- **Two widget styles**, chosen in the settings:
+  - **Natif**: rows that extend Letterboxd's own actions panel.
+  - **Billet**: a cinema ticket whose tear-off stub is the main button.
 
-1. Ouvrez `chrome://extensions` (ou `edge://extensions`).
-2. Activez le **Mode développeur** en haut à droite.
-3. Cliquez sur **Charger l’extension non empaquetée**.
-4. Sélectionnez le dossier du projet (ou le dossier généré `dist/chrome`).
+## Install
 
-### Firefox (128+)
+Download the package for your browser from the [latest release](../../releases/latest).
 
-1. Exécutez `python3 scripts/build.py` pour générer `dist/firefox`.
-2. Ouvrez `about:debugging#/runtime/this-firefox`.
-3. Cliquez sur **Charger un module complémentaire temporaire…**.
-4. Sélectionnez `dist/firefox/manifest.json` (ou le paquet `dist/jellyboxd-firefox.xpi`).
+### Chrome, Edge, Brave
+
+1. Unzip `jellyboxd-<version>-chrome.zip`.
+2. Open `chrome://extensions` (or `edge://extensions`) and turn on **Developer mode**.
+3. Click **Load unpacked** and select the unzipped folder.
+
+### Firefox
+
+The `.xpi` file is not signed by Mozilla yet.
+
+- **Firefox Developer Edition or Nightly**: set `xpinstall.signatures.required` to `false` in `about:config`, then open the `.xpi` file.
+- **Firefox (release)**: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and select the `.xpi`. The add-on stays until Firefox restarts.
 
 ### Safari (macOS)
 
-1. Ouvrez `safari/Jellyboxd/Jellyboxd.xcodeproj` dans Xcode : le projet embarque directement `manifest.json`, `icons/` et `src/` de la racine du dépôt.
-2. Lancez la cible **Jellyboxd**, puis activez l’extension dans Safari → Réglages → Extensions (cochez « Autoriser les extensions non signées » dans le menu Développement si besoin).
+The Safari app is built without an Apple signature.
 
-## Configuration
+1. Unzip `jellyboxd-<version>-safari-macos.zip` and move **Jellyboxd.app** to Applications.
+2. In Safari, turn on **Settings → Advanced → Show features for web developers**, then **Develop → Allow Unsigned Extensions**.
+3. Open Jellyboxd.app once, then enable the extension in **Safari → Settings → Extensions**.
 
-1. Cliquez sur l’icône de l’extension dans la barre du navigateur (ou ouvrez les **Paramètres avancés**).
-2. Renseignez l’URL de votre serveur Seerr / Jellyseerr (ex. `https://seerr.mondomaine.fr` ou `http://192.168.1.10:5055`).
-3. Choisissez le mode d’authentification :
-   - **Clé API (recommandé)** : copiez la clé située dans Seerr sous **Paramètres → Général → Clé API**.
-   - **Session navigateur (Cookie)** : utilisez la connexion Jellyfin intégrée dans les paramètres de l’extension.
-4. Cliquez sur **Tester & Enregistrer** et acceptez la demande de permission réseau du navigateur.
-5. *(Optionnel)* Renseignez l’**URL publique Jellyfin** si Seerr vous renvoie une URL locale/LAN inutilisable à distance.
+Safari turns off unsigned extensions when it quits, so step 2 has to be repeated after each restart. You can also build and sign the app yourself from the Xcode project in `safari/`.
 
-## Dépannage rapide
+## Setup
 
-- **Erreur 403 lors des requêtes ou profils invisibles** :
-  - Vérifiez si la **Protection CSRF** est activée dans Seerr (*Paramètres → Général*) ; si vous utilisez le mode Cookie depuis un autre domaine ou sans HTTPS, privilégiez la **Clé API**.
-  - En mode Cookie, le compte utilisé doit posséder la permission Seerr `REQUEST_ADVANCED` pour lister et choisir les profils de qualité Radarr/Sonarr. Sans cette permission, la demande reste possible avec le profil par défaut de Seerr.
-- **Aucun film détecté sur Letterboxd** : l’extension s’active sur les fiches de films (`https://letterboxd.com/film/...`) possédant un identifiant TMDB.
+1. Open the extension's settings (toolbar icon, then **Paramètres avancés**).
+2. Enter your Seerr URL, for example `https://seerr.example.com` or `http://192.168.1.10:5055`.
+3. Choose how to sign in:
+   - **API key** (recommended): Seerr → Settings → General → API Key.
+   - **Browser session (cookie)**: sign in with your Jellyfin account from the settings page.
+4. Click **Tester & Enregistrer** and accept the network permission prompt.
+5. Optional: add your public Jellyfin URL (and an API key) if Seerr only knows a local address, or to look films up in Jellyfin directly.
+6. Optional: pick the widget style under **Apparence du composant**.
 
-## Build & vérification
+## Troubleshooting
+
+- **403 errors, or no quality profiles**: if Seerr's CSRF protection is on and you use cookie mode from another domain or over plain HTTP, switch to an API key. In cookie mode, the Seerr account needs the `REQUEST_ADVANCED` permission to list profiles; without it, requests still go through with Seerr's default profile.
+- **Nothing shows on Letterboxd**: the widget only appears on film pages (`https://letterboxd.com/film/...`) that have a TMDB id.
+
+## Development
 
 ```bash
 python3 scripts/build.py    # dist/chrome, dist/firefox, dist/jellyboxd-chrome.zip, dist/jellyboxd-firefox.xpi
-python3 scripts/verify.py   # fichiers référencés, JSON, syntaxe JS (si node est installé)
+python3 scripts/verify.py   # referenced files, JSON, and JS syntax when Node.js is installed
 ```
 
-## Structure
+Load the repository root as an unpacked extension in Chrome while working: `manifest.json` at the root is the Chrome manifest.
 
-- `manifest.json`, `src/`, `icons/` : l’extension (manifest Chrome, chargeable telle quelle).
-- `plateformes/firefox/surcharges.json` : clés remplacées dans le manifest pour Firefox (`background.scripts`, `browser_specific_settings`).
-- `safari/` : projet Xcode (app conteneur + extension Safari).
-- `scripts/` : build et vérification (Python 3, sans dépendance).
+| Path | Content |
+|---|---|
+| `manifest.json`, `src/`, `icons/` | The extension. |
+| `src/content/` | The widget injected into Letterboxd film pages. |
+| `src/background/` | Seerr and Jellyfin API clients, settings and cache. |
+| `src/options/`, `src/popup/` | Settings page and toolbar popup. |
+| `platforms/firefox/overrides.json` | Keys replaced in the manifest for Firefox (`background.scripts`, `browser_specific_settings`). |
+| `safari/` | Xcode project wrapping the extension for Safari. |
+| `scripts/` | Build and checks (Python 3, standard library only). |
+
+## Releases
+
+GitHub Actions builds the Chrome and Firefox packages on every push and pull request, and the Safari app on every push to `main`.
+
+To publish a release, bump `version` in `manifest.json`, commit, then push a matching tag:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+The workflow checks that the tag matches the manifest, then attaches the three packages to a new GitHub release.
