@@ -12,19 +12,21 @@ Works on Chrome, Edge, Brave, Firefox (128+) and Safari (macOS). Manifest V3, no
 - **4K, only if you use it**: when a server is flagged as 4K in Seerr, the widget offers a separate 4K request. Other setups never see it.
 - **Follow and cancel requests** from Letterboxd.
 - **Seerr only**: without a Jellyfin URL, the widget uses the playback link Seerr provides, or links to the film in Seerr.
+- **Set up from Letterboxd**: on any film page, enter your Seerr address and sign in.
+- **Your own Seerr account**: you sign in on your Seerr itself, as usual. No admin API key needed, and your password never goes through Jellyboxd.
 - **Two widget styles**, chosen in the settings:
+  - **Ticket** (default): a paper cinema ticket whose tear-off stub is the main button.
   - **Native**: rows that extend Letterboxd's own actions panel.
-  - **Ticket**: a cinema ticket whose tear-off stub is the main button.
 
 ## Widget styles
+
+**Ticket** turns the widget into a paper cinema ticket whose stub is the main button.
+
+![Ticket style: watch link, request form, and a request being downloaded](docs/images/ticket.png)
 
 **Native** extends Letterboxd's actions panel.
 
 ![Native style: watch link, request form, and a request being downloaded](docs/images/native.png)
-
-**Ticket** turns the widget into a cinema ticket whose stub is the main button.
-
-![Ticket style: watch link, request form, and a request being downloaded](docs/images/ticket.png)
 
 ## Install
 
@@ -55,18 +57,19 @@ Safari turns off unsigned extensions when it quits, so step 2 has to be repeated
 
 ## Setup
 
-1. Open the extension's settings (toolbar icon, then **Advanced settings**).
-2. Enter your Seerr URL, for example `https://seerr.example.com` or `http://192.168.1.10:5055`.
+1. Open any film on Letterboxd. Jellyboxd shows under the actions panel and asks for your Seerr address.
+2. Enter it and click **Continue**. A small Jellyboxd window opens.
 3. Choose how to sign in:
-   - **API key** (recommended): Seerr → Settings → General → API Key.
-   - **Browser session**: sign in with your Jellyfin account from the settings page.
-4. Click **Test & save** and accept the network permission prompt.
-5. Optional: add your public Jellyfin URL (and an API key) if Seerr only knows a local address, or to look films up in Jellyfin directly.
-6. Optional: pick the widget style under **Widget**.
+   - **Your Seerr account** (recommended): click **Sign in on Seerr**, allow access, and sign in on the Seerr tab that opens, as you usually do. The window notices it by itself.
+   - **API key**: for Seerr administrators. Paste the key from Seerr › Settings › General.
+4. Optional, in the settings (toolbar icon › **Settings**): add your public Jellyfin address for the **Watch on Jellyfin** link, and a Jellyfin API key to show each film's quality and date added. Pick the widget style there too.
+
+![The settings page, with a live preview of the widget](docs/images/settings.png)
 
 ## Troubleshooting
 
-- **403 errors, or no quality profiles**: if Seerr's CSRF protection is on and you use a browser session from another domain or over plain HTTP, switch to an API key. With a browser session, the Seerr account needs the `REQUEST_ADVANCED` permission to list profiles; without it, requests still go through with Seerr's default profile.
+- **Signed out right after signing in**: make sure you signed in on the same address as the one in Jellyboxd's settings (for example `https://` rather than `http://`).
+- **No quality profiles**: your Seerr account needs the `REQUEST_ADVANCED` permission to list them; without it, requests still go through with Seerr's default profile.
 - **Nothing shows on Letterboxd**: the widget only appears on film pages (`https://letterboxd.com/film/...`) that have a TMDB id.
 
 ## Development
@@ -83,7 +86,7 @@ Load the repository root as an unpacked extension in Chrome while working: `mani
 | `manifest.json`, `src/`, `icons/` | The extension. |
 | `src/content/` | The widget injected into Letterboxd film pages. |
 | `src/background/` | Seerr and Jellyfin API clients, settings and cache. |
-| `src/options/`, `src/popup/` | Settings page and toolbar popup. |
+| `src/options/`, `src/popup/`, `src/setup/` | Settings page, toolbar popup and sign-in window. |
 | `platforms/firefox/overrides.json` | Keys replaced in the manifest for Firefox (`background.scripts`, `browser_specific_settings`). |
 | `safari/` | Xcode project wrapping the extension for Safari. |
 | `scripts/` | Build and checks (Python 3, standard library only). |
