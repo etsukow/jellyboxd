@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Construit les paquets de l'extension Jellyboxd pour Chrome et Firefox.
+"""Builds the Jellyboxd extension packages for Chrome and Firefox.
 
-- dist/chrome/   : copie du manifest.json, de icons/ et de src/ ;
-- dist/firefox/  : même copie, mais manifest.json généré avec les surcharges
-                   de plateformes/firefox/surcharges.json (background en
+- dist/chrome/   : copy of manifest.json, icons/ and src/ ;
+- dist/firefox/  : same copy, but manifest.json generated with the overrides
+                   from platforms/firefox/overrides.json (background as
                    "scripts" + browser_specific_settings.gecko) ;
-- dist/jellyboxd-chrome.zip  et dist/jellyboxd-firefox.xpi : archives zip
-  avec manifest.json à la racine.
+- dist/jellyboxd-chrome.zip  and dist/jellyboxd-firefox.xpi : zip archives
+  with manifest.json at the root.
 
-Le script vide dist/ avant toute reconstruction. Les chemins sont toujours
-résolus relativement à la racine du dépôt, quel que soit le dossier courant.
+The script empties dist/ before any rebuild. Paths are always resolved
+relative to the repository root, regardless of the current directory.
 """
 
 import json
@@ -18,76 +18,76 @@ import sys
 import zipfile
 from pathlib import Path
 
-# Racine du dépôt : dossier parent du dossier "scripts" contenant ce fichier.
-RACINE = Path(__file__).resolve().parent.parent
+# Repository root: parent folder of the "scripts" folder containing this file.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
-CHEMIN_MANIFEST = RACINE / "manifest.json"
-CHEMIN_SURCHARGES = RACINE / "plateformes" / "firefox" / "surcharges.json"
-DOSSIER_DIST = RACINE / "dist"
+MANIFEST_PATH = REPO_ROOT / "manifest.json"
+OVERRIDES_PATH = REPO_ROOT / "platforms" / "firefox" / "overrides.json"
+DIST_DIR = REPO_ROOT / "dist"
 
-# Éléments à copier tels quels dans chaque paquet.
-A_COPIER = ["manifest.json", "icons", "src"]
+# Items to copy as-is into each package.
+TO_COPY = ["manifest.json", "icons", "src"]
 
 
-def copier_paquet(dossier_cible: Path) -> None:
-    """Copie manifest.json, icons/ et src/ vers dossier_cible."""
-    dossier_cible.mkdir(parents=True, exist_ok=True)
-    for element in A_COPIER:
-        source = RACINE / element
-        destination = dossier_cible / element
+def copy_package(target_dir: Path) -> None:
+    """Copies manifest.json, icons/ and src/ into target_dir."""
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for item in TO_COPY:
+        source = REPO_ROOT / item
+        destination = target_dir / item
         if source.is_dir():
             shutil.copytree(source, destination)
         else:
             shutil.copy2(source, destination)
 
 
-def generer_manifest_firefox() -> dict:
-    """Retourne le manifest Chrome avec les surcharges Firefox appliquées."""
-    with CHEMIN_MANIFEST.open(encoding="utf-8") as f:
+def generate_firefox_manifest() -> dict:
+    """Returns the Chrome manifest with the Firefox overrides applied."""
+    with MANIFEST_PATH.open(encoding="utf-8") as f:
         manifest = json.load(f)
-    with CHEMIN_SURCHARGES.open(encoding="utf-8") as f:
-        surcharges = json.load(f)
-    # On ne reprend que les clés techniques (background, browser_specific_settings),
-    # jamais le nom ni les autres champs de l'ancienne référence.
-    manifest.update(surcharges)
+    with OVERRIDES_PATH.open(encoding="utf-8") as f:
+        overrides = json.load(f)
+    # Only technical keys (background, browser_specific_settings) are taken over,
+    # never the name nor the other fields of the old reference.
+    manifest.update(overrides)
     return manifest
 
 
-def ecrire_archive(dossier_source: Path, chemin_archive: Path) -> None:
-    """Zippe dossier_source dans chemin_archive, manifest.json à la racine."""
-    with zipfile.ZipFile(chemin_archive, "w", zipfile.ZIP_DEFLATED) as archive:
-        for chemin in sorted(dossier_source.rglob("*")):
-            if chemin.is_file():
-                archive.write(chemin, chemin.relative_to(dossier_source))
+def write_archive(source_dir: Path, archive_path: Path) -> None:
+    """Zips source_dir into archive_path, manifest.json at the root."""
+    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(source_dir.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(source_dir))
 
 
 def main() -> int:
-    # Vérification préalable des entrées indispensables.
-    for chemin in (CHEMIN_MANIFEST, CHEMIN_SURCHARGES):
-        if not chemin.is_file():
-            print(f"Erreur : fichier manquant {chemin.relative_to(RACINE)}")
+    # Upfront check of the essential inputs.
+    for path in (MANIFEST_PATH, OVERRIDES_PATH):
+        if not path.is_file():
+            print(f"Error: missing file {path.relative_to(REPO_ROOT)}")
             return 1
 
-    # Vidage complet de dist/ avant reconstruction.
-    if DOSSIER_DIST.exists():
-        shutil.rmtree(DOSSIER_DIST)
-    DOSSIER_DIST.mkdir(parents=True)
+    # Complete wipe of dist/ before rebuild.
+    if DIST_DIR.exists():
+        shutil.rmtree(DIST_DIR)
+    DIST_DIR.mkdir(parents=True)
 
-    # Paquet Chrome : copie simple.
-    dossier_chrome = DOSSIER_DIST / "chrome"
-    copier_paquet(dossier_chrome)
-    ecrire_archive(dossier_chrome, DOSSIER_DIST / "jellyboxd-chrome.zip")
-    print("Paquet Chrome : dist/chrome/ + dist/jellyboxd-chrome.zip")
+    # Chrome package: simple copy.
+    chrome_dir = DIST_DIR / "chrome"
+    copy_package(chrome_dir)
+    write_archive(chrome_dir, DIST_DIR / "jellyboxd-chrome.zip")
+    print("Chrome package: dist/chrome/ + dist/jellyboxd-chrome.zip")
 
-    # Paquet Firefox : copie + manifest généré avec surcharges.
-    dossier_firefox = DOSSIER_DIST / "firefox"
-    copier_paquet(dossier_firefox)
-    manifest_firefox = generer_manifest_firefox()
-    with (dossier_firefox / "manifest.json").open("w", encoding="utf-8") as f:
-        json.dump(manifest_firefox, f, ensure_ascii=False, indent=2)
+    # Firefox package: copy + manifest generated with overrides.
+    firefox_dir = DIST_DIR / "firefox"
+    copy_package(firefox_dir)
+    firefox_manifest = generate_firefox_manifest()
+    with (firefox_dir / "manifest.json").open("w", encoding="utf-8") as f:
+        json.dump(firefox_manifest, f, ensure_ascii=False, indent=2)
         f.write("\n")
-    ecrire_archive(dossier_firefox, DOSSIER_DIST / "jellyboxd-firefox.xpi")
-    print("Paquet Firefox : dist/firefox/ + dist/jellyboxd-firefox.xpi")
+    write_archive(firefox_dir, DIST_DIR / "jellyboxd-firefox.xpi")
+    print("Firefox package: dist/firefox/ + dist/jellyboxd-firefox.xpi")
 
     return 0
 

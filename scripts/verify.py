@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Vérifie la cohérence de l'extension Jellyboxd.
+"""Checks the consistency of the Jellyboxd extension.
 
-Contrôles effectués :
-- manifest.json et plateformes/firefox/surcharges.json sont du JSON valide ;
-- chaque fichier cité dans le manifest (service_worker, js/css des
-  content_scripts, action.default_popup, options_ui.page, icônes) et dans
-  surcharges.json (background.scripts) existe réellement ;
-- chaque fichier .js de src/ passe « node --check » si node est disponible
-  (sinon le fait savoir et saute ce contrôle) ;
-- chaque référence relative src= / href= des pages HTML de src/ existe.
+Checks performed:
+- manifest.json and platforms/firefox/overrides.json are valid JSON ;
+- every file cited in the manifest (service_worker, js/css of the
+  content_scripts, action.default_popup, options_ui.page, icons) and in
+  overrides.json (background.scripts) actually exists ;
+- every .js file in src/ passes "node --check" if node is available
+  (otherwise it says so and skips this check) ;
+- every relative src= / href= reference in the HTML pages of src/ exists.
 
-En cas de problème : liste des problèmes sur la sortie standard et code 1.
-Sinon : affiche « OK » et code 0.
+On any problem: list of problems on standard output and exit code 1.
+Otherwise: prints "OK" and exit code 0.
 """
 
 import json
@@ -21,42 +21,42 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Racine du dépôt : dossier parent du dossier "scripts" contenant ce fichier.
-RACINE = Path(__file__).resolve().parent.parent
+# Repository root: parent folder of the "scripts" folder containing this file.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
-CHEMIN_MANIFEST = RACINE / "manifest.json"
-CHEMIN_SURCHARGES = RACINE / "plateformes" / "firefox" / "surcharges.json"
-DOSSIER_SRC = RACINE / "src"
+MANIFEST_PATH = REPO_ROOT / "manifest.json"
+OVERRIDES_PATH = REPO_ROOT / "platforms" / "firefox" / "overrides.json"
+SRC_DIR = REPO_ROOT / "src"
 
-# Attributs src= / href= des pages HTML (guillemets simples ou doubles).
-REGEX_ATTR = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+# src= / href= attributes in HTML pages (single or double quotes).
+ATTR_REGEX = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 
 
-def charger_json(chemin: Path, problemes: list) -> dict | None:
-    """Charge un fichier JSON ; ajoute un problème si absent ou invalide."""
-    if not chemin.is_file():
-        problemes.append(f"fichier manquant : {chemin.relative_to(RACINE)}")
+def load_json(path: Path, problems: list) -> dict | None:
+    """Loads a JSON file ; adds a problem if missing or invalid."""
+    if not path.is_file():
+        problems.append(f"missing file: {path.relative_to(REPO_ROOT)}")
         return None
     try:
-        with chemin.open(encoding="utf-8") as f:
+        with path.open(encoding="utf-8") as f:
             return json.load(f)
-    except json.JSONDecodeError as erreur:
-        problemes.append(
-            f"JSON invalide dans {chemin.relative_to(RACINE)} : {erreur}"
+    except json.JSONDecodeError as error:
+        problems.append(
+            f"invalid JSON in {path.relative_to(REPO_ROOT)}: {error}"
         )
         return None
 
 
-def verifier_fichier(chemin_rel: str, origine: str, problemes: list) -> None:
-    """Vérifie qu'un chemin relatif cité dans un JSON existe dans le dépôt."""
-    if not (RACINE / chemin_rel).is_file():
-        problemes.append(
-            f"fichier introuvable : {chemin_rel} (référencé par {origine})"
+def check_file(rel_path: str, origin: str, problems: list) -> None:
+    """Checks that a relative path cited in a JSON exists in the repository."""
+    if not (REPO_ROOT / rel_path).is_file():
+        problems.append(
+            f"file not found: {rel_path} (referenced by {origin})"
         )
 
 
-def collecter_refs_manifest(manifest: dict) -> list:
-    """Retourne la liste des (chemin, origine) cités dans le manifest."""
+def collect_manifest_refs(manifest: dict) -> list:
+    """Returns the list of (path, origin) cited in the manifest."""
     refs = []
     bg = manifest.get("background", {})
     if "service_worker" in bg:
@@ -64,79 +64,79 @@ def collecter_refs_manifest(manifest: dict) -> list:
     for script in bg.get("scripts", []):
         refs.append((script, "manifest.background.scripts"))
     for cs in manifest.get("content_scripts", []):
-        for chemin in cs.get("js", []):
-            refs.append((chemin, "manifest.content_scripts.js"))
-        for chemin in cs.get("css", []):
-            refs.append((chemin, "manifest.content_scripts.css"))
+        for path in cs.get("js", []):
+            refs.append((path, "manifest.content_scripts.js"))
+        for path in cs.get("css", []):
+            refs.append((path, "manifest.content_scripts.css"))
     action = manifest.get("action", {})
     if "default_popup" in action:
         refs.append((action["default_popup"], "manifest.action.default_popup"))
-    for taille, chemin in action.get("default_icon", {}).items():
-        refs.append((chemin, f"manifest.action.default_icon[{taille}]"))
+    for size, path in action.get("default_icon", {}).items():
+        refs.append((path, f"manifest.action.default_icon[{size}]"))
     options = manifest.get("options_ui", {})
     if "page" in options:
         refs.append((options["page"], "manifest.options_ui.page"))
-    for taille, chemin in manifest.get("icons", {}).items():
-        refs.append((chemin, f"manifest.icons[{taille}]"))
+    for size, path in manifest.get("icons", {}).items():
+        refs.append((path, f"manifest.icons[{size}]"))
     return refs
 
 
-def verifier_syntaxe_js(problemes: list) -> None:
-    """Passe « node --check » sur chaque .js de src/, si node est disponible."""
+def check_js_syntax(problems: list) -> None:
+    """Runs "node --check" on each .js in src/, if node is available."""
     node = shutil.which("node")
     if node is None:
-        print("Note : node est indisponible, contrôle de syntaxe JS sauté.")
+        print("Note: node is unavailable, JS syntax check skipped.")
         return
-    for chemin_js in sorted(DOSSIER_SRC.rglob("*.js")):
-        resultat = subprocess.run(
-            [node, "--check", str(chemin_js)],
+    for js_path in sorted(SRC_DIR.rglob("*.js")):
+        result = subprocess.run(
+            [node, "--check", str(js_path)],
             capture_output=True,
             text=True,
         )
-        if resultat.returncode != 0:
-            detail = (resultat.stderr or resultat.stdout).strip().splitlines()
-            message = detail[0] if detail else "erreur inconnue"
-            problemes.append(
-                f"node --check échoue pour {chemin_js.relative_to(RACINE)} : {message}"
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip().splitlines()
+            message = detail[0] if detail else "unknown error"
+            problems.append(
+                f"node --check fails for {js_path.relative_to(REPO_ROOT)}: {message}"
             )
 
 
-def verifier_pages_html(problemes: list) -> None:
-    """Vérifie les références relatives src=/href= des pages HTML de src/."""
-    for chemin_html in sorted(DOSSIER_SRC.rglob("*.html")):
-        texte = chemin_html.read_text(encoding="utf-8")
-        for ref in REGEX_ATTR.findall(texte):
-            # On ignore les URLs absolues, les données embarquées et les ancres.
+def check_html_pages(problems: list) -> None:
+    """Checks the relative src=/href= references of the HTML pages in src/."""
+    for html_path in sorted(SRC_DIR.rglob("*.html")):
+        text = html_path.read_text(encoding="utf-8")
+        for ref in ATTR_REGEX.findall(text):
+            # Absolute URLs, embedded data and anchors are ignored.
             if re.match(r"^[a-z]+:", ref, re.IGNORECASE) or ref.startswith(("//", "#", "/")):
                 continue
-            cible = (chemin_html.parent / ref).resolve()
-            if not cible.is_file():
-                problemes.append(
-                    f"référence introuvable : {ref} (page {chemin_html.relative_to(RACINE)})"
+            target = (html_path.parent / ref).resolve()
+            if not target.is_file():
+                problems.append(
+                    f"reference not found: {ref} (page {html_path.relative_to(REPO_ROOT)})"
                 )
 
 
 def main() -> int:
-    problemes: list = []
+    problems: list = []
 
-    manifest = charger_json(CHEMIN_MANIFEST, problemes)
-    surcharges = charger_json(CHEMIN_SURCHARGES, problemes)
+    manifest = load_json(MANIFEST_PATH, problems)
+    overrides = load_json(OVERRIDES_PATH, problems)
 
     if manifest is not None:
-        for chemin, origine in collecter_refs_manifest(manifest):
-            verifier_fichier(chemin, origine, problemes)
+        for path, origin in collect_manifest_refs(manifest):
+            check_file(path, origin, problems)
 
-    if surcharges is not None:
-        for script in surcharges.get("background", {}).get("scripts", []):
-            verifier_fichier(script, "surcharges.json background.scripts", problemes)
+    if overrides is not None:
+        for script in overrides.get("background", {}).get("scripts", []):
+            check_file(script, "overrides.json background.scripts", problems)
 
-    verifier_syntaxe_js(problemes)
-    verifier_pages_html(problemes)
+    check_js_syntax(problems)
+    check_html_pages(problems)
 
-    if problemes:
-        print(f"{len(problemes)} problème(s) détecté(s) :")
-        for probleme in problemes:
-            print(f"  - {probleme}")
+    if problems:
+        print(f"{len(problems)} problem(s) found:")
+        for problem in problems:
+            print(f"  - {problem}")
         return 1
 
     print("OK")
