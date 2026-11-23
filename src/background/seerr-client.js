@@ -82,7 +82,9 @@
         headers['X-Api-Key'] = apiKey;
       }
     } else if (authMode === 'cookie') {
-      credentials = 'include';
+      // With the session rule the cookie is added to the request already; asking the browser for
+      // its own cookies as well makes Safari drop the request's cookie.
+      credentials = ns.session && ns.session.isRuleActive() ? 'omit' : 'include';
     }
 
     var controller = new AbortController();

@@ -2,6 +2,7 @@
 """Builds the Jellyboxd extension packages for Chrome and Firefox.
 
 - dist/chrome/   : copy of manifest.json, icons/ and src/ ;
+- dist/safari/   : same copy, background page from platforms/safari/overrides.json;
 - dist/firefox/  : same copy, but manifest.json generated with the overrides
                    from platforms/firefox/overrides.json (background as
                    "scripts" + browser_specific_settings.gecko) ;
@@ -23,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 MANIFEST_PATH = REPO_ROOT / "manifest.json"
 OVERRIDES_PATH = REPO_ROOT / "platforms" / "firefox" / "overrides.json"
+SAFARI_OVERRIDES_PATH = REPO_ROOT / "platforms" / "safari" / "overrides.json"
 DIST_DIR = REPO_ROOT / "dist"
 
 # Items to copy as-is into each package.
@@ -41,16 +43,25 @@ def copy_package(target_dir: Path) -> None:
             shutil.copy2(source, destination)
 
 
-def generate_firefox_manifest() -> dict:
-    """Returns the Chrome manifest with the Firefox overrides applied."""
+def generate_manifest(overrides_path: Path) -> dict:
+    """Returns the Chrome manifest with a platform's overrides applied."""
     with MANIFEST_PATH.open(encoding="utf-8") as f:
         manifest = json.load(f)
-    with OVERRIDES_PATH.open(encoding="utf-8") as f:
+    with overrides_path.open(encoding="utf-8") as f:
         overrides = json.load(f)
-    # Only technical keys (background, browser_specific_settings) are taken over,
-    # never the name nor the other fields of the old reference.
+    # Only technical keys (background, browser_specific_settings) are replaced.
     manifest.update(overrides)
     return manifest
+
+
+def build_platform(name: str, overrides_path: Path) -> Path:
+    """Copies the extension into dist/<name>/ with the platform's manifest."""
+    target = DIST_DIR / name
+    copy_package(target)
+    with (target / "manifest.json").open("w", encoding="utf-8") as f:
+        json.dump(generate_manifest(overrides_path), f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    return target
 
 
 def write_archive(source_dir: Path, archive_path: Path) -> None:
@@ -63,7 +74,7 @@ def write_archive(source_dir: Path, archive_path: Path) -> None:
 
 def main() -> int:
     # Upfront check of the essential inputs.
-    for path in (MANIFEST_PATH, OVERRIDES_PATH):
+    for path in (MANIFEST_PATH, OVERRIDES_PATH, SAFARI_OVERRIDES_PATH):
         if not path.is_file():
             print(f"Error: missing file {path.relative_to(REPO_ROOT)}")
             return 1
@@ -80,14 +91,14 @@ def main() -> int:
     print("Chrome package: dist/chrome/ + dist/jellyboxd-chrome.zip")
 
     # Firefox package: copy + manifest generated with overrides.
-    firefox_dir = DIST_DIR / "firefox"
-    copy_package(firefox_dir)
-    firefox_manifest = generate_firefox_manifest()
-    with (firefox_dir / "manifest.json").open("w", encoding="utf-8") as f:
-        json.dump(firefox_manifest, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    firefox_dir = build_platform("firefox", OVERRIDES_PATH)
     write_archive(firefox_dir, DIST_DIR / "jellyboxd-firefox.xpi")
     print("Firefox package: dist/firefox/ + dist/jellyboxd-firefox.xpi")
+
+    # Safari: a background page instead of a service worker; Safari applies the session
+    # network rule to an extension page's requests.
+    build_platform("safari", SAFARI_OVERRIDES_PATH)
+    print("Safari folder: dist/safari/ (load it in Safari or convert it with Xcode)")
 
     return 0
 

@@ -1,0 +1,13 @@
+{
+  "background": {
+    "scripts": [
+      "src/shared/browser-api.js",
+      "src/shared/constants.js",
+      "src/background/seerr-client.js",
+      "src/background/jellyfin-client.js",
+      "src/background/session.js",
+      "src/background/background.js"
+    ],
+    "persistent": false
+  }
+}

@@ -13,6 +13,21 @@
     });
   }
 
+  // Focus an open tab on this Seerr, or open one.
+  async function openSeerrTab(seerrUrl) {
+    var ext = ns.api.raw;
+    try {
+      var tabs = await ns.api.call(ext.tabs, 'query', [{ url: new URL(seerrUrl).origin + '/*' }]);
+      if (tabs && tabs.length) {
+        await ns.api.call(ext.tabs, 'update', [tabs[0].id, { active: true }]);
+        return;
+      }
+    } catch (_err) {
+      // Fall back to a new tab.
+    }
+    await ns.api.createTab(seerrUrl);
+  }
+
   // onStatus(state, detail): 'checking' | 'waiting' | 'signed-in' (detail = user) | 'error' (detail = text) | 'timeout'
   async function signInWithSession(seerrUrl, onStatus) {
     var MSG = ns.MSG;
@@ -26,7 +41,7 @@
       onStatus('signed-in', first.user);
       return true;
     }
-    await ns.api.createTab(seerrUrl);
+    await openSeerrTab(seerrUrl);
     onStatus('waiting');
     var started = Date.now();
     while (Date.now() - started < MAX_WAIT_MS) {

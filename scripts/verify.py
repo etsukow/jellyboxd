@@ -130,6 +130,11 @@ def main() -> int:
         for script in overrides.get("background", {}).get("scripts", []):
             check_file(script, "overrides.json background.scripts", problems)
 
+    safari = load_json(REPO_ROOT / "platforms" / "safari" / "overrides.json", problems)
+    if safari is not None:
+        for script in safari.get("background", {}).get("scripts", []):
+            check_file(script, "safari overrides background.scripts", problems)
+
     check_js_syntax(problems)
     check_html_pages(problems)
 

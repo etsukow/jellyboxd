@@ -13,6 +13,7 @@
   var RULE_ID = 1;
   var COOKIE_NAME = 'connect.sid';
   var lastRuleValue = null;
+  var ruleActive = false;
 
   function ext() {
     return ns.api && ns.api.raw;
@@ -44,6 +45,7 @@
   async function removeRule() {
     var api = dnr();
     lastRuleValue = null;
+    ruleActive = false;
     if (!api) {
       return;
     }
@@ -60,6 +62,7 @@
       return false;
     }
     if (lastRuleValue === seerrUrl + '\n' + value) {
+      ruleActive = true;
       return true;
     }
     var rule = {
@@ -79,10 +82,12 @@
     try {
       await ns.api.call(api, 'updateSessionRules', [{ removeRuleIds: [RULE_ID], addRules: [rule] }]);
       lastRuleValue = seerrUrl + '\n' + value;
+      ruleActive = true;
       return true;
     } catch (_err) {
       // Without the tab limit the rule would reach web pages too; rely on the browser instead.
       lastRuleValue = null;
+      ruleActive = false;
       return false;
     }
   }
@@ -133,6 +138,12 @@
 
   ns.session = {
     syncSession: syncSession,
+    readSessionCookie: readSessionCookie,
+    setRule: setRule,
+    // True while the network rule carries the session cookie.
+    isRuleActive: function () {
+      return ruleActive;
+    },
     watchCookies: watchCookies,
     removeRule: removeRule
   };

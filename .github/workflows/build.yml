@@ -73,7 +73,7 @@ jobs:
 
       - name: Convert to a Safari web extension project
         run: |
-          xcrun safari-web-extension-converter dist/chrome \
+          xcrun safari-web-extension-converter dist/safari \
             --project-location build/safari \
             --app-name Jellyboxd \
             --bundle-identifier io.github.etsukow.jellyboxd \
