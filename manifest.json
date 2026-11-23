@@ -21,7 +21,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://letterboxd.com/film/*"
+        "https://letterboxd.com/film/*",
+        "https://letterboxd.com/*/film/*"
       ],
       "js": [
         "src/shared/browser-api.js",

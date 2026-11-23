@@ -13,7 +13,7 @@ Everything is kept in your browser's extension storage, on your device:
 
 ## What it reads on Letterboxd
 
-Only on film pages, and only to find the film on your servers: the TMDB id, title, original title and year shown on the page. It does not read your Letterboxd account, ratings, diary or lists.
+Only on film pages and reviews, and only to find the film on your servers: the TMDB id, title, original title and year shown on the film's page. A review page does not show the TMDB id, so Jellyboxd loads the film's Letterboxd page to read it, from letterboxd.com, as your browser would. It does not read your Letterboxd account, ratings, diary or lists.
 
 When Jellyboxd is not set up yet, the film page asks for your Seerr address only. You sign in in a Jellyboxd window, never on the Letterboxd page, so scripts running on Letterboxd cannot see what you type.
 
@@ -36,7 +36,7 @@ Jellyboxd then reads your Seerr session cookie and adds it to its own requests t
 ## Permissions
 
 - **Storage**: to keep your settings.
-- **letterboxd.com**: to show the widget on film pages.
+- **letterboxd.com**: to show the widget on film and review pages.
 - **Cookies**: to read the session cookie of your Seerr address, and of no other site.
 - **Network rules**: to add that cookie to Jellyboxd's own requests to your Seerr.
 - **Access to your server addresses**: optional, requested when you connect your Seerr or check your Jellyfin. Because every server has its own address, the extension can ask for any site, but it only asks for the ones you enter. For your Seerr, it asks for both its `https://` and `http://` address, because Seerr may file its session cookie under either.

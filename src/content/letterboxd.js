@@ -144,12 +144,14 @@
     return days < 14 ? days + (days === 1 ? ' day ago' : ' days ago') : formatDate(iso);
   }
 
-  function extractFilmMeta() {
-    var tmdbId = document.body ? document.body.getAttribute('data-tmdb-id') : '';
-    var tmdbType = document.body ? document.body.getAttribute('data-tmdb-type') : '';
+  // Reads the film from a Letterboxd film page: the current one, or one fetched for a review.
+  function extractFilmMeta(doc) {
+    doc = doc || document;
+    var tmdbId = doc.body ? doc.body.getAttribute('data-tmdb-id') : '';
+    var tmdbType = doc.body ? doc.body.getAttribute('data-tmdb-type') : '';
 
     if (!tmdbId || !/^\d+$/.test(tmdbId.trim())) {
-      var tmdbLink = document.querySelector(
+      var tmdbLink = doc.querySelector(
         'a[href*="themoviedb.org/movie/"], a[href*="themoviedb.org/tv/"]'
       );
       if (tmdbLink) {
@@ -166,18 +168,18 @@
     }
 
     // The page's first <h1> is the site logo: read the film's own heading, then the share title.
-    var titleNode = document.querySelector('h1.primaryname, .production-masthead h1.headline-1, .film-title-wrapper h1');
+    var titleNode = doc.querySelector('h1.primaryname, .production-masthead h1.headline-1, .film-title-wrapper h1');
     var title = titleNode ? titleNode.textContent.replace(/\s+/g, ' ').trim() : '';
-    var ogTitle = document.querySelector('meta[property="og:title"]');
+    var ogTitle = doc.querySelector('meta[property="og:title"]');
     var ogText = ogTitle ? ogTitle.getAttribute('content') || '' : '';
     if (!title) {
       title = ogText.replace(/\s*\(\d{4}\)\s*$/, '').trim();
     }
 
-    var origNode = document.querySelector('.originalname, h2.originalname');
+    var origNode = doc.querySelector('.originalname, h2.originalname');
     var originalTitle = origNode ? origNode.textContent.trim() : '';
 
-    var yearNode = document.querySelector('.releasedate a, .releasedate, .releaseyear a, a[href*="/films/year/"]');
+    var yearNode = doc.querySelector('.releasedate a, .releasedate, .releaseyear a, a[href*="/films/year/"]');
     var year = yearNode ? (yearNode.textContent.match(/\d{4}/) || [''])[0] : '';
     if (!year) {
       year = (ogText.match(/\((\d{4})\)\s*$/) || ['', ''])[1];
@@ -190,6 +192,48 @@
       originalTitle: originalTitle,
       year: year
     };
+  }
+
+  // Review pages (/<member>/film/<slug>/, or /<n>/ for a rewatch) carry no TMDB id: read it from the
+  // film's own page, once per tab session.
+  function reviewFilmSlug() {
+    var match = global.location.pathname.match(/^\/[^/]+\/film\/([^/]+)\/(?:\d+\/)?$/);
+    return match ? match[1] : '';
+  }
+
+  async function fetchReviewedFilm(slug) {
+    var cacheKey = 'jellyboxd:film:' + slug;
+    try {
+      var cached = JSON.parse(global.sessionStorage.getItem(cacheKey) || 'null');
+      if (cached && cached.tmdbId) {
+        return cached;
+      }
+    } catch (_err) {
+      // No cache.
+    }
+    try {
+      var res = await fetch('/film/' + encodeURIComponent(slug) + '/', { credentials: 'same-origin' });
+      if (!res.ok) {
+        return null;
+      }
+      var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      var film = extractFilmMeta(doc);
+      if (film) {
+        try {
+          global.sessionStorage.setItem(cacheKey, JSON.stringify(film));
+        } catch (_err) {
+          // Cache is optional.
+        }
+      }
+      return film;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  async function resolveFilm() {
+    var slug = reviewFilmSlug();
+    return slug ? fetchReviewedFilm(slug) : extractFilmMeta();
   }
 
   function findMountTarget() {
@@ -1603,7 +1647,7 @@
   }
 
   async function init() {
-    currentFilm = extractFilmMeta();
+    currentFilm = await resolveFilm();
     if (!currentFilm) {
       return;
     }
