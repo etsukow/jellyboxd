@@ -653,6 +653,39 @@
     return { ok: true, configured: true, signedIn: Boolean(user), user: user, authMode: settings.authMode, host: host, seerrUrl: settings.seerrUrl };
   }
 
+  // What the background sees of the Seerr session; values are never returned, only facts.
+  async function handleDiagnose(payload) {
+    var settings = await loadSettings();
+    var out = { context: typeof ServiceWorkerGlobalScope !== 'undefined' && global instanceof ServiceWorkerGlobalScope ? 'service worker' : 'background page' };
+    if (!settings.seerrUrl) {
+      out.error = 'No Seerr address saved';
+      return { ok: true, report: out };
+    }
+    out.access = await hasOriginPermission(settings.seerrUrl);
+    var value = await ns.session.readSessionCookie(settings.seerrUrl);
+    out.cookieVisible = Boolean(value);
+    if (!value && payload && payload.cookieFromPage) {
+      // The page could read it: try the rule with the page's copy.
+      value = payload.cookieFromPage;
+      out.usedPageCookie = true;
+    }
+    out.ruleSet = value ? await ns.session.setRule(settings.seerrUrl, value) : false;
+    var dnr = ns.api.raw.declarativeNetRequest;
+    try {
+      out.rules = dnr && dnr.getSessionRules ? (await ns.api.call(dnr, 'getSessionRules', [])).length : 'no API';
+    } catch (err) {
+      out.rules = 'error: ' + err.message;
+    }
+    for (var mode of ['omit', 'include']) {
+      try {
+        out['me_' + mode] = (await fetch(settings.seerrUrl + '/api/v1/auth/me', { credentials: mode, cache: 'no-store' })).status;
+      } catch (err) {
+        out['me_' + mode] = 'error: ' + err.message;
+      }
+    }
+    return { ok: true, report: out };
+  }
+
   var SEERR_MESSAGES = [
     MSG.TEST_SEERR_CONNECTION, MSG.GET_SEERR_USERS, MSG.GET_SERVICES,
     MSG.GET_MEDIA_STATE, MSG.SUBMIT_REQUEST, MSG.CANCEL_REQUEST
@@ -710,6 +743,11 @@
         return { ok: true };
       case MSG.START_SETUP:
         return handleStartSetup(payload);
+      case MSG.DIAGNOSE:
+        if (fromContentScript) {
+          return { ok: false, error: 'Action not allowed from the page.' };
+        }
+        return handleDiagnose(payload);
       case MSG.CHECK_SESSION:
         return handleCheckSession(payload);
       case MSG.SETUP_SIGNIN:

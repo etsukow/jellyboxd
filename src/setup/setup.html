@@ -40,6 +40,13 @@
 
     <p id="status" class="dark-state" role="status" aria-live="polite" hidden></p>
     <button id="closeBtn" type="button" class="lbx-link close-link">Not now</button>
+
+    <details class="diag">
+      <summary>Details for troubleshooting</summary>
+      <p class="diag-help">Checks what Jellyboxd can see of your Seerr session. Cookie values are never shown.</p>
+      <button id="diagBtn" type="button" class="lbx-link">Run the check</button>
+      <pre id="diagOut" class="diag-out" hidden></pre>
+    </details>
   </main>
 
   <script src="../shared/browser-api.js"></script>

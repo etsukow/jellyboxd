@@ -118,6 +118,43 @@
     submitBtn.disabled = false;
   });
 
+  // Troubleshooting: the same checks from this window and from the background, values never shown.
+  document.getElementById('diagBtn').addEventListener('click', async function () {
+    var out = document.getElementById('diagOut');
+    out.hidden = false;
+    out.textContent = 'Checking…';
+    var ext = ns.api.raw;
+    var lines = ['Browser: ' + navigator.userAgent.replace(/.*(Version\/[\d.]+ Safari|Chrome\/[\d.]+|Firefox\/[\d.]+).*/, '$1')];
+    var seerrUrl = ns.utils.normalizeBaseUrl(urlInput.value);
+    var cookieValue = null;
+    try {
+      var cookies = await ns.api.call(ext.cookies, 'getAll', [{ url: seerrUrl + '/' }]);
+      var sid = (cookies || []).find(function (c) {
+        return c.name === 'connect.sid';
+      });
+      cookieValue = sid ? sid.value : null;
+      lines.push('Window sees the session cookie: ' + (sid ? 'yes' : 'no') + ' (' + (cookies || []).length + ' cookies)');
+    } catch (err) {
+      lines.push('Window cookies API: ' + err.message);
+    }
+    try {
+      var me = await fetch(seerrUrl + '/api/v1/auth/me', { credentials: 'omit', cache: 'no-store' });
+      lines.push('Window request to Seerr: ' + me.status);
+    } catch (err) {
+      lines.push('Window request to Seerr: ' + err.message);
+    }
+    try {
+      var res = await ns.api.sendMessage({ type: MSG.DIAGNOSE, payload: { cookieFromPage: cookieValue } });
+      var r = (res && res.report) || {};
+      Object.keys(r).forEach(function (k) {
+        lines.push('Background ' + k + ': ' + r[k]);
+      });
+    } catch (err) {
+      lines.push('Background: ' + err.message);
+    }
+    out.textContent = lines.join('\n');
+  });
+
   urlInput.value = params.get('seerr') || '';
   ns.api
     .sendMessage({ type: MSG.GET_CONFIG })

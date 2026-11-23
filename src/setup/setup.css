@@ -7,6 +7,31 @@
   gap: 16px;
 }
 
+.diag {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.diag summary {
+  cursor: pointer;
+}
+
+.diag-help {
+  margin: 8px 0;
+}
+
+.diag-out {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--page-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  user-select: all;
+}
+
 .close-link {
   align-self: center;
 }
