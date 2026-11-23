@@ -39,7 +39,7 @@ Jellyboxd then reads your Seerr session cookie and adds it to its own requests t
 - **letterboxd.com**: to show the widget on film pages.
 - **Cookies**: to read the session cookie of your Seerr address, and of no other site.
 - **Network rules**: to add that cookie to Jellyboxd's own requests to your Seerr.
-- **Access to your server addresses**: optional, requested when you connect your Seerr or check your Jellyfin. Because every server has its own address, the extension can ask for any site, but it only asks for the ones you enter.
+- **Access to your server addresses**: optional, requested when you connect your Seerr or check your Jellyfin. Because every server has its own address, the extension can ask for any site, but it only asks for the ones you enter. For your Seerr, it asks for both its `https://` and `http://` address, because Seerr may file its session cookie under either.
 
 ## Deleting your data
 

@@ -69,6 +69,7 @@ Safari turns off unsigned extensions when it quits, so step 2 has to be repeated
 ## Troubleshooting
 
 - **Signed out right after signing in**: make sure you signed in on the same address as the one in Jellyboxd's settings (for example `https://` rather than `http://`).
+- **Signed out on Safari behind a reverse proxy**: sign in again from the Jellyboxd window and allow both the `https://` and `http://` access it asks for. If your proxy sends `X-Forwarded-Proto`, turning on **Enable Proxy Support** in Seerr › Settings › Network also fixes it and keeps the session cookie on https only.
 - **No quality profiles**: your Seerr account needs the `REQUEST_ADVANCED` permission to list them; without it, requests still go through with Seerr's default profile.
 - **Nothing shows on Letterboxd**: the widget only appears on film pages (`https://letterboxd.com/film/...`) that have a TMDB id.
 
