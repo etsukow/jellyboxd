@@ -19,7 +19,7 @@
   var feedback = null; // { type: 'success'|'error', text: string }
   var confirmCancelId = null;
   var confirmTimer = null;
-  var widgetStyle = 'native'; // 'native' | 'ticket' (user setting "Style du composant")
+  var widgetStyle = 'native'; // 'native' | 'ticket' (user setting "Widget style")
   var formOpen = false; // request form is folded when the film can already be watched
 
   var formSelection = {
@@ -33,23 +33,23 @@
 
   // Status wording shown on the page (the tone comes from MEDIA_STATUS_META).
   var STATUS_TEXT = {};
-  STATUS_TEXT[MEDIA_STATUS.UNKNOWN] = 'Non disponible';
-  STATUS_TEXT[MEDIA_STATUS.PENDING] = 'En attente';
-  STATUS_TEXT[MEDIA_STATUS.PROCESSING] = 'En téléchargement';
-  STATUS_TEXT[MEDIA_STATUS.PARTIAL] = 'Partiellement disponible';
-  STATUS_TEXT[MEDIA_STATUS.AVAILABLE] = 'Disponible';
-  STATUS_TEXT[MEDIA_STATUS.BLOCKLISTED] = 'Bloqué';
-  STATUS_TEXT[MEDIA_STATUS.DELETED] = 'Non disponible';
+  STATUS_TEXT[MEDIA_STATUS.UNKNOWN] = 'Not available';
+  STATUS_TEXT[MEDIA_STATUS.PENDING] = 'Pending';
+  STATUS_TEXT[MEDIA_STATUS.PROCESSING] = 'Downloading';
+  STATUS_TEXT[MEDIA_STATUS.PARTIAL] = 'Partially available';
+  STATUS_TEXT[MEDIA_STATUS.AVAILABLE] = 'Available';
+  STATUS_TEXT[MEDIA_STATUS.BLOCKLISTED] = 'Blocked';
+  STATUS_TEXT[MEDIA_STATUS.DELETED] = 'Not available';
 
-  // Short wording for the ticket's "État" field.
+  // Short wording for the ticket's "Status" field.
   var STATUS_SHORT = {};
-  STATUS_SHORT[MEDIA_STATUS.UNKNOWN] = 'Absent';
-  STATUS_SHORT[MEDIA_STATUS.PENDING] = 'En attente';
-  STATUS_SHORT[MEDIA_STATUS.PROCESSING] = 'En cours';
-  STATUS_SHORT[MEDIA_STATUS.PARTIAL] = 'Partiel';
-  STATUS_SHORT[MEDIA_STATUS.AVAILABLE] = 'Disponible';
-  STATUS_SHORT[MEDIA_STATUS.BLOCKLISTED] = 'Bloqué';
-  STATUS_SHORT[MEDIA_STATUS.DELETED] = 'Absent';
+  STATUS_SHORT[MEDIA_STATUS.UNKNOWN] = 'Missing';
+  STATUS_SHORT[MEDIA_STATUS.PENDING] = 'Pending';
+  STATUS_SHORT[MEDIA_STATUS.PROCESSING] = 'Downloading';
+  STATUS_SHORT[MEDIA_STATUS.PARTIAL] = 'Partial';
+  STATUS_SHORT[MEDIA_STATUS.AVAILABLE] = 'Available';
+  STATUS_SHORT[MEDIA_STATUS.BLOCKLISTED] = 'Blocked';
+  STATUS_SHORT[MEDIA_STATUS.DELETED] = 'Missing';
 
   var ICONS = {
     play: [{ tag: 'polygon', points: '6 4 20 12 6 20 6 4', fill: 'currentColor', stroke: 'none' }],
@@ -110,11 +110,11 @@
       return '';
     }
     if (m < 60) {
-      return m + ' min';
+      return m + 'm';
     }
     var h = Math.floor(m / 60);
     var rest = m % 60;
-    return h + ' h ' + (rest < 10 ? '0' : '') + rest;
+    return h + 'h ' + (rest < 10 ? '0' : '') + rest + 'm';
   }
 
   function extractFilmMeta() {
@@ -224,7 +224,7 @@
     }
 
     root.className = 'lbx-w lbx-w-' + widgetStyle;
-    root.setAttribute('aria-label', 'Disponibilité sur Seerr / Jellyfin');
+    root.setAttribute('aria-label', 'Availability on Seerr / Jellyfin');
     return root;
   }
 
@@ -363,19 +363,19 @@
     // 1. Playback links. When one exists it doubles as the status.
     if (ns.utils.isSafeHttpUrl(jf.url)) {
       // Without a Jellyfin URL the link comes from Seerr, whose media server may not be Jellyfin.
-      view.watch.push({ label: jfConf ? 'Regarder sur Jellyfin' : 'Regarder', url: jf.url });
+      view.watch.push({ label: jfConf ? 'Watch on Jellyfin' : 'Watch', url: jf.url });
     }
     if (ns.utils.isSafeHttpUrl(jf.url4k)) {
-      view.watch.push({ label: 'Regarder en 4K', url: jf.url4k });
+      view.watch.push({ label: 'Watch in 4K', url: jf.url4k });
     }
 
     // 2. Status, only when there is no "watch" link.
     if (view.watch.length === 0) {
       var text = STATUS_TEXT[st] || STATUS_TEXT[MEDIA_STATUS.UNKNOWN];
       if (!isKnownStatus(st) && (jfConf || !state.hasSeerr)) {
-        text = 'Absent de Jellyfin';
+        text = 'Not on Jellyfin';
       }
-      view.status = { tone: toneOf(st), text: text, short: STATUS_SHORT[st] || 'Absent', sub: '' };
+      view.status = { tone: toneOf(st), text: text, short: STATUS_SHORT[st] || 'Missing', sub: '' };
       if ((st === MEDIA_STATUS.AVAILABLE || st === MEDIA_STATUS.PARTIAL) && seerrUrl) {
         view.openSeerr = seerrUrl;
       }
@@ -395,13 +395,13 @@
         subParts.push(req.profileName);
       }
       if (req.requestedByName) {
-        subParts.push('par ' + req.requestedByName);
+        subParts.push('by ' + req.requestedByName);
       }
       view.requests.push({
         id: req.id,
         is4k: Boolean(req.is4k),
         tone: meta.tone,
-        title: 'Demande ' + (req.is4k ? '4K ' : '') + meta.label.charAt(0).toLowerCase() + meta.label.slice(1),
+        title: 'Request ' + (req.is4k ? '4K ' : '') + meta.label.charAt(0).toLowerCase() + meta.label.slice(1),
         sub: subParts.join(' · '),
         cancellable:
           Boolean(req.id) &&
@@ -434,10 +434,10 @@
         view.form = {
           collapsed: view.watch.length > 0 || Boolean(view.openSeerr),
           toggleLabel: only4k
-            ? 'Demander en 4K…'
+            ? 'Request in 4K…'
             : state.mediaType === 'tv'
-              ? 'Demander d’autres saisons…'
-              : 'Faire une autre demande…'
+              ? 'Request more seasons…'
+              : 'Make another request…'
         };
       }
     }
@@ -482,10 +482,10 @@
 
     if (servers.length > 1) {
       fields.push({
-        label: 'Serveur',
+        label: 'Server',
         control: makeSelect(
           cls,
-          'Serveur',
+          'Server',
           servers.map(function (srv) {
             return {
               value: String(srv.id),
@@ -506,10 +506,10 @@
 
     if (selectedServer && Array.isArray(selectedServer.profiles) && selectedServer.profiles.length > 0) {
       fields.push({
-        label: 'Profil',
+        label: 'Profile',
         control: makeSelect(
           cls,
-          'Profil de qualité',
+          'Quality profile',
           selectedServer.profiles.map(function (prof) {
             return {
               value: String(prof.id),
@@ -523,7 +523,7 @@
         )
       });
     } else if (!advancedAllowed || (selectedServer && selectedServer.detailError)) {
-      fields.push({ note: 'Profil choisi par Seerr (permission avancée requise pour le changer ici).' });
+      fields.push({ note: 'Profile chosen by Seerr (advanced permission required to change it here).' });
     }
 
     return fields;
@@ -557,7 +557,7 @@
     if (state.preferences && state.preferences.expandAdvancedByDefault) {
       details.open = true;
     }
-    details.appendChild(el('summary', prefix + '-adv-summary', 'Options avancées'));
+    details.appendChild(el('summary', prefix + '-adv-summary', 'Advanced options'));
     var body = el('div', prefix + '-adv-body');
 
     function addField(label, control) {
@@ -569,14 +569,14 @@
 
     if (hasFolders) {
       addField(
-        'Dossier',
+        'Folder',
         makeSelect(
           selectCls,
-          'Dossier racine',
+          'Root folder',
           selectedServer.rootFolders.map(function (folder) {
             var spaceStr =
               typeof folder.freeSpace === 'number'
-                ? ' (' + ns.utils.formatBytes(folder.freeSpace) + ' libres)'
+                ? ' (' + ns.utils.formatBytes(folder.freeSpace) + ' free)'
                 : '';
             return {
               value: folder.path,
@@ -615,7 +615,7 @@
     if (hasSeasons) {
       var seasonChips = el('div', prefix + '-chips');
       seasonChips.appendChild(
-        makeChip(prefix, 'Toutes', formSelection.allSeasons, function (checked) {
+        makeChip(prefix, 'All', formSelection.allSeasons, function (checked) {
           formSelection.allSeasons = checked;
           if (checked) {
             formSelection.seasons = state.seasons.map(function (s) {
@@ -643,7 +643,7 @@
           );
         });
       }
-      addField('Saisons', seasonChips);
+      addField('Seasons', seasonChips);
     }
 
     details.appendChild(body);
@@ -652,12 +652,12 @@
 
   function submitLabel(state, selectedServer) {
     if (isSubmitting) {
-      return 'Envoi en cours…';
+      return 'Sending…';
     }
     if (selectedServer && selectedServer.is4k) {
-      return state.mediaType === 'tv' ? 'Demander la série en 4K' : 'Demander en 4K';
+      return state.mediaType === 'tv' ? 'Request series in 4K' : 'Request in 4K';
     }
-    return state.mediaType === 'tv' ? 'Demander la série' : 'Demander le film';
+    return state.mediaType === 'tv' ? 'Request series' : 'Request film';
   }
 
   // Two-step cancel: first click arms the button, second click within 4 s confirms.
@@ -685,13 +685,13 @@
 
   function cancelLabel(req, view) {
     if (confirmCancelId === req.id) {
-      return 'Confirmer l’annulation';
+      return 'Confirm cancel';
     }
     var several =
       view.requests.filter(function (r) {
         return r.cancellable;
       }).length > 1;
-    return several && req.is4k ? 'Annuler la demande 4K' : 'Annuler la demande';
+    return several && req.is4k ? 'Cancel 4K request' : 'Cancel request';
   }
 
   function openOptions() {
@@ -706,38 +706,38 @@
   // Messages shown instead of the film (setup, permission, errors).
   function messageState(state) {
     if (isLoading && !state) {
-      return { kind: 'loading', text: 'Vérification sur Seerr / Jellyfin…' };
+      return { kind: 'loading', text: 'Checking on Seerr / Jellyfin…' };
     }
     if (!state) {
       return {
         kind: 'error',
-        text: (feedback && feedback.text) || 'Impossible de récupérer les informations.',
-        action: { label: 'Réessayer', onClick: refresh }
+        text: (feedback && feedback.text) || 'Could not fetch the information.',
+        action: { label: 'Retry', onClick: refresh }
       };
     }
     if (!state.configured) {
       return {
         kind: 'info',
-        text: 'Configure ton serveur Seerr ou Jellyfin pour voir la disponibilité de ce film.',
-        action: { label: 'Configurer l’extension', onClick: openOptions }
+        text: 'Set up your Seerr or Jellyfin server to see whether this film is available.',
+        action: { label: 'Set up the extension', onClick: openOptions }
       };
     }
     if (state.permissionMissing) {
       return {
         kind: 'warn',
-        text: 'Permission réseau requise pour accéder à ' + state.seerrUrl + '.',
-        action: { label: 'Autoriser dans les paramètres', onClick: openOptions }
+        text: 'Network permission required to access ' + state.seerrUrl + '.',
+        action: { label: 'Allow in settings', onClick: openOptions }
       };
     }
     if (state.authMissing) {
       return {
         kind: 'warn',
-        text: 'Clé API Seerr manquante dans la configuration.',
-        action: { label: 'Configurer la clé API', onClick: openOptions }
+        text: 'Seerr API key missing from the settings.',
+        action: { label: 'Set up the API key', onClick: openOptions }
       };
     }
     if (state.seerrError && !(state.jellyfin && state.jellyfin.url) && !state.mediaInfo) {
-      return { kind: 'error', text: state.seerrError, action: { label: 'Réessayer', onClick: refresh } };
+      return { kind: 'error', text: state.seerrError, action: { label: 'Retry', onClick: refresh } };
     }
     return null;
   }
@@ -802,7 +802,7 @@
     return row;
   }
 
-  function renderNatif(root, state) {
+  function renderNative(root, state) {
     var panel = el('div', 'lbx-n');
     var msg = messageState(state);
 
@@ -833,7 +833,7 @@
         var left = el('span', 'lbx-n-line');
         left.appendChild(dot(view.status.tone));
         left.appendChild(el('span', null, view.status.text));
-        var right = el('span', 'lbx-n-line lbx-n-sub', 'Ouvrir dans Seerr');
+        var right = el('span', 'lbx-n-line lbx-n-sub', 'Open in Seerr');
         right.appendChild(icon('ext'));
         link.appendChild(left);
         link.appendChild(right);
@@ -907,12 +907,12 @@
 
     var foot = el('div', 'lbx-n-foot');
     if (view.seerrUrl && !view.openSeerr) {
-      foot.appendChild(externalLink('lbx-link', 'Ouvrir dans Seerr', view.seerrUrl));
+      foot.appendChild(externalLink('lbx-link', 'Open in Seerr', view.seerrUrl));
     }
-    var refreshBtn = textButton('lbx-link', isLoading ? 'Actualisation…' : 'Actualiser', refresh);
+    var refreshBtn = textButton('lbx-link', isLoading ? 'Refreshing…' : 'Refresh', refresh);
     refreshBtn.disabled = isLoading || isSubmitting;
     foot.appendChild(refreshBtn);
-    foot.appendChild(textButton('lbx-link', 'Réglages', openOptions));
+    foot.appendChild(textButton('lbx-link', 'Settings', openOptions));
     panel.appendChild(foot);
 
     root.appendChild(panel);
@@ -951,7 +951,7 @@
       });
       if (view.form.collapsed) {
         plan.links.push({
-          label: 'Fermer',
+          label: 'Close',
           onClick: function () {
             formOpen = false;
             render();
@@ -964,7 +964,7 @@
         plan.links.push({ label: w.label, url: w.url });
       });
     } else if (view.openSeerr) {
-      plan.stub = { kind: 'go', label: 'Ouvrir dans Seerr', url: view.openSeerr, iconAfter: 'ext' };
+      plan.stub = { kind: 'go', label: 'Open in Seerr', url: view.openSeerr, iconAfter: 'ext' };
     }
 
     var cancellable = view.requests.filter(function (r) {
@@ -996,14 +996,14 @@
 
     if (!plan.stub) {
       plan.stub = view.seerrUrl
-        ? { kind: 'plain', label: 'Voir dans Seerr', url: view.seerrUrl, iconAfter: 'ext' }
-        : { kind: 'plain', label: 'Actualiser', onClick: refresh };
+        ? { kind: 'plain', label: 'View in Seerr', url: view.seerrUrl, iconAfter: 'ext' }
+        : { kind: 'plain', label: 'Refresh', onClick: refresh };
     }
 
     return plan;
   }
 
-  function renderBillet(root, state) {
+  function renderTicket(root, state) {
     var film = currentFilm || {};
     var msg = messageState(state);
     var view = msg ? null : buildView(state);
@@ -1025,13 +1025,13 @@
     // Printed fields, like the screen / row / seat boxes of a real ticket.
     var fields = [];
     if (film.year) {
-      fields.push({ label: 'Année', value: film.year });
+      fields.push({ label: 'Year', value: film.year });
     }
     if (film.runtime) {
-      fields.push({ label: 'Durée', value: film.runtime });
+      fields.push({ label: 'Runtime', value: film.runtime });
     }
     if (view && view.status) {
-      fields.push({ label: 'État', value: view.status.short, tone: view.status.tone });
+      fields.push({ label: 'Status', value: view.status.short, tone: view.status.tone });
     }
     if (fields.length) {
       var grid = el('div', 'lbx-t-fields');
@@ -1126,14 +1126,14 @@
     // Fine print under the ticket.
     var fine = el('div', 'lbx-t-fine');
     if (view && view.seerrUrl && stub.url !== view.seerrUrl) {
-      fine.appendChild(externalLink('lbx-link', 'Ouvrir dans Seerr', view.seerrUrl));
+      fine.appendChild(externalLink('lbx-link', 'Open in Seerr', view.seerrUrl));
     }
     if (!msg) {
-      var refreshBtn = textButton('lbx-link', isLoading ? 'Actualisation…' : 'Actualiser', refresh);
+      var refreshBtn = textButton('lbx-link', isLoading ? 'Refreshing…' : 'Refresh', refresh);
       refreshBtn.disabled = isLoading || isSubmitting;
       fine.appendChild(refreshBtn);
     }
-    fine.appendChild(textButton('lbx-link', 'Réglages', openOptions));
+    fine.appendChild(textButton('lbx-link', 'Settings', openOptions));
     root.appendChild(fine);
   }
 
@@ -1146,9 +1146,9 @@
       root.removeChild(root.firstChild);
     }
     if (widgetStyle === 'ticket') {
-      renderBillet(root, currentState);
+      renderTicket(root, currentState);
     } else {
-      renderNatif(root, currentState);
+      renderNative(root, currentState);
     }
   }
 
@@ -1190,13 +1190,13 @@
       } else {
         feedback = {
           type: 'error',
-          text: (res && res.error) || 'Impossible de récupérer les informations.'
+          text: (res && res.error) || 'Could not fetch the information.'
         };
       }
     } catch (err) {
       feedback = {
         type: 'error',
-        text: (err && err.message) || 'Erreur de communication avec l’extension.'
+        text: (err && err.message) || 'Communication error with the extension.'
       };
     } finally {
       isLoading = false;
@@ -1210,7 +1210,7 @@
     }
 
     if (currentState.mediaType === 'tv' && !formSelection.allSeasons && formSelection.seasons.length === 0) {
-      feedback = { type: 'error', text: 'Sélectionne au moins une saison à demander.' };
+      feedback = { type: 'error', text: 'Select at least one season to request.' };
       render();
       return;
     }
@@ -1256,17 +1256,17 @@
           currentState = res.state;
         }
         formOpen = false;
-        feedback = { type: 'success', text: 'Demande envoyée à Seerr.' };
+        feedback = { type: 'success', text: 'Request sent to Seerr.' };
       } else {
         feedback = {
           type: 'error',
-          text: (res && res.error) || 'Échec de l’envoi de la demande.'
+          text: (res && res.error) || 'Failed to send the request.'
         };
       }
     } catch (err) {
       feedback = {
         type: 'error',
-        text: (err && err.message) || 'Erreur lors de l’envoi de la demande.'
+        text: (err && err.message) || 'Error while sending the request.'
       };
     } finally {
       isSubmitting = false;
@@ -1299,17 +1299,17 @@
         if (res.state) {
           currentState = res.state;
         }
-        feedback = { type: 'success', text: 'Demande annulée.' };
+        feedback = { type: 'success', text: 'Request cancelled.' };
       } else {
         feedback = {
           type: 'error',
-          text: (res && res.error) || 'Impossible d’annuler cette demande.'
+          text: (res && res.error) || 'Could not cancel this request.'
         };
       }
     } catch (err) {
       feedback = {
         type: 'error',
-        text: (err && err.message) || 'Erreur lors de l’annulation.'
+        text: (err && err.message) || 'Error while cancelling.'
       };
     } finally {
       isSubmitting = false;

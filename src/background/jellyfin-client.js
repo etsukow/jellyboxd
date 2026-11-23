@@ -50,7 +50,7 @@
   async function fetchJellyfinJson(baseUrl, apiKey, path) {
     var cleanBase = ns.utils.normalizeBaseUrl(baseUrl);
     if (!cleanBase) {
-      throw new Error('URL Jellyfin non configurée.');
+      throw new Error('Jellyfin URL not configured.');
     }
 
     var headers = {
@@ -76,18 +76,18 @@
     } catch (err) {
       clearTimeout(timeoutId);
       if (err && err.name === 'AbortError') {
-        throw new Error('Délai d’attente dépassé pour Jellyfin.');
+        throw new Error('Timed out connecting to Jellyfin.');
       }
-      throw new Error('Impossible de joindre Jellyfin (' + cleanBase + ').');
+      throw new Error('Could not reach Jellyfin (' + cleanBase + ').');
     }
 
     clearTimeout(timeoutId);
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Clé API Jellyfin invalide ou refusée (' + response.status + ').');
+      throw new Error('Jellyfin API key invalid or rejected (' + response.status + ').');
     }
     if (!response.ok) {
-      throw new Error('Erreur Jellyfin (' + response.status + ').');
+      throw new Error('Jellyfin error (' + response.status + ').');
     }
 
     return response.json();

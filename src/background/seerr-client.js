@@ -21,18 +21,18 @@
 
     if (status === 401) {
       return makeError(
-        'Authentification Seerr refusée (401). Vérifiez votre clé API ou reconnectez votre session.',
+        'Seerr authentication rejected (401). Check your API key or reconnect your session.',
         { status: status, code: 'UNAUTHORIZED', rawMessage: apiMsg }
       );
     }
     if (status === 403) {
       return makeError(
-        'Accès refusé par Seerr (403) sur ' + path + '. Vérifiez vos permissions ou la protection CSRF.',
+        'Access denied by Seerr (403) on ' + path + '. Check your permissions or the CSRF protection.',
         { status: status, code: 'FORBIDDEN', rawMessage: apiMsg }
       );
     }
     if (status === 404) {
-      return makeError('Ressource introuvable sur Seerr (404) : ' + path, {
+      return makeError('Resource not found on Seerr (404): ' + path, {
         status: status,
         code: 'NOT_FOUND',
         rawMessage: apiMsg
@@ -40,18 +40,18 @@
     }
     if (status === 409) {
       return makeError(
-        apiMsg || 'Ce média est déjà demandé ou disponible sur Seerr (409).',
+        apiMsg || 'This media is already requested or available on Seerr (409).',
         { status: status, code: 'CONFLICT', rawMessage: apiMsg }
       );
     }
     if (status >= 500) {
       return makeError(
-        'Erreur interne du serveur Seerr (' + status + ')' + (apiMsg ? ' : ' + apiMsg : '.'),
+        'Internal Seerr server error (' + status + ')' + (apiMsg ? ': ' + apiMsg : '.'),
         { status: status, code: 'SERVER_ERROR', rawMessage: apiMsg }
       );
     }
     return makeError(
-      'Erreur Seerr (' + status + ')' + (apiMsg ? ' : ' + apiMsg : '.'),
+      'Seerr error (' + status + ')' + (apiMsg ? ': ' + apiMsg : '.'),
       { status: status, code: 'HTTP_ERROR', rawMessage: apiMsg }
     );
   }
@@ -60,7 +60,7 @@
     var opts = options || {};
     var baseUrl = ns.utils.normalizeBaseUrl(config && config.seerrUrl);
     if (!baseUrl) {
-      throw makeError('URL du serveur Seerr non configurée.', { code: 'NO_URL' });
+      throw makeError('Seerr server URL not configured.', { code: 'NO_URL' });
     }
 
     var authMode = (config && config.authMode) || 'apiKey';
@@ -76,7 +76,7 @@
     if (authMode === 'apiKey') {
       var apiKey = config && config.seerrApiKey ? String(config.seerrApiKey).trim() : '';
       if (!apiKey && !opts.allowUnauthenticated) {
-        throw makeError('Clé API Seerr manquante.', { code: 'NO_API_KEY' });
+        throw makeError('Seerr API key missing.', { code: 'NO_API_KEY' });
       }
       if (apiKey) {
         headers['X-Api-Key'] = apiKey;
@@ -102,13 +102,13 @@
     } catch (err) {
       clearTimeout(timeoutId);
       if (err && err.name === 'AbortError') {
-        throw makeError('Délai d’attente dépassé lors de la connexion à Seerr.', {
+        throw makeError('Timed out while connecting to Seerr.', {
           code: 'TIMEOUT',
           rawMessage: err.message
         });
       }
       throw makeError(
-        'Impossible de joindre le serveur Seerr (' + baseUrl + '). Vérifiez l’URL et le réseau.',
+        'Could not reach the Seerr server (' + baseUrl + '). Check the URL and your network.',
         { code: 'NETWORK_ERROR', rawMessage: err && err.message ? err.message : '' }
       );
     }
@@ -245,7 +245,7 @@
         profiles: [],
         rootFolders: [],
         tags: [],
-        detailError: reason.message || 'Impossible de charger les profils.'
+        detailError: reason.message || 'Could not load profiles.'
       };
     });
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Jellyboxd",
   "version": "1.0.0",
-  "description": "Affiche la disponibilité Jellyfin/Seerr sur Letterboxd et permet de demander des films avec choix du profil de qualité.",
+  "description": "Shows whether a Letterboxd film is on your Jellyfin server and requests it through Seerr, with your own quality profiles.",
   "permissions": [
     "storage"
   ],

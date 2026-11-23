@@ -7,7 +7,7 @@
 
   function callApi(target, method, args) {
     if (!target || typeof target[method] !== 'function') {
-      return Promise.reject(new Error('API navigateur indisponible : ' + method));
+      return Promise.reject(new Error('Browser API unavailable: ' + method));
     }
 
     if (hasBrowserNs) {
@@ -24,7 +24,7 @@
         finalArgs.push(function (result) {
           var lastErr = global.chrome && global.chrome.runtime && global.chrome.runtime.lastError;
           if (lastErr) {
-            reject(new Error(lastErr.message || 'Erreur API Chrome'));
+            reject(new Error(lastErr.message || 'Chrome API error'));
             return;
           }
           resolve(result);
@@ -58,7 +58,7 @@
     return callApi(ext.permissions, 'contains', [{ origins: origins }]);
   }
 
-  // IMPORTANT : doit être appelé de façon synchrone dans un gestionnaire de clic (règle Firefox)
+  // IMPORTANT: must be called synchronously inside a click handler (Firefox rule)
   function permissionsRequest(origins) {
     if (!Array.isArray(origins) || origins.length === 0) {
       return Promise.resolve(true);
@@ -81,7 +81,7 @@
     if (ext.tabs && typeof ext.tabs.create === 'function') {
       return callApi(ext.tabs, 'create', [{ url: url }]);
     }
-    return Promise.reject(new Error('API tabs indisponible'));
+    return Promise.reject(new Error('tabs API unavailable'));
   }
 
   ns.api = {

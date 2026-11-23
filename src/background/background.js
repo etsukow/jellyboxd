@@ -49,7 +49,7 @@
     obj[STORAGE_KEYS.settings] = next;
     await ns.api.storageSet(obj);
 
-    // Invalide le cache des profils dès que la configuration serveur/auth change
+    // Invalidates the profile cache whenever the server/auth configuration changes
     await clearServicesCache();
     return next;
   }
@@ -167,7 +167,7 @@
       var requestedByName =
         (req.requestedBy &&
           (req.requestedBy.displayName || req.requestedBy.username || req.requestedBy.email)) ||
-        'Utilisateur';
+        'User';
       return {
         id: req.id,
         status: req.status,
@@ -190,7 +190,7 @@
         .map(function (s) {
           return {
             seasonNumber: Number(s.seasonNumber),
-            name: s.name || 'Saison ' + s.seasonNumber,
+            name: s.name || 'Season ' + s.seasonNumber,
             episodeCount: s.episodeCount || 0
           };
         });
@@ -278,7 +278,7 @@
       } else {
         seerrError =
           (settled[0].reason && settled[0].reason.message) ||
-          'Erreur lors de la récupération du média sur Seerr.';
+          'Error fetching the media from Seerr.';
       }
 
       if (settled[1].status === 'fulfilled' && settled[1].value) {
@@ -288,7 +288,7 @@
           kind: serviceKind,
           servers: [],
           advancedAllowed: false,
-          error: settled[1].reason ? settled[1].reason.message : 'Services indisponibles.'
+          error: settled[1].reason ? settled[1].reason.message : 'Services unavailable.'
         };
       }
     }
@@ -298,7 +298,7 @@
 
     var jellyfinLinks = ns.jellyfin.resolveJellyfinLinks(mediaInfo, settings.jellyfinUrl);
 
-    // Fallback direct vers l'API Jellyfin si configuré et aucun lien fourni par Seerr
+    // Direct fallback to the Jellyfin API when configured and Seerr provides no link
     if (!jellyfinLinks.url && hasDirectJellyfin) {
       try {
         var jfPermOk = await hasOriginPermission(settings.jellyfinUrl);
@@ -342,7 +342,7 @@
           }
         }
       } catch (_jfErr) {
-        // Silencieux : le fallback Jellyfin ne doit pas bloquer l'affichage Seerr
+        // Silent: the Jellyfin fallback must not block the Seerr display
       }
     }
 
@@ -379,7 +379,7 @@
     cfg.seerrUrl = ns.utils.normalizeBaseUrl(cfg.seerrUrl);
 
     if (!cfg.seerrUrl) {
-      return { ok: false, error: 'Veuillez renseigner l’URL du serveur Seerr.' };
+      return { ok: false, error: 'Enter the Seerr server URL.' };
     }
 
     var permOk = await hasOriginPermission(cfg.seerrUrl);
@@ -387,7 +387,7 @@
       return {
         ok: false,
         permissionMissing: true,
-        error: 'Permission réseau requise pour accéder à ' + cfg.seerrUrl
+        error: 'Network permission required to access ' + cfg.seerrUrl
       };
     }
 
@@ -418,10 +418,10 @@
     var password = payload && payload.password ? String(payload.password) : '';
 
     if (!seerrUrl) {
-      return { ok: false, error: 'URL Seerr requise.' };
+      return { ok: false, error: 'Seerr URL required.' };
     }
     if (!username) {
-      return { ok: false, error: 'Nom d’utilisateur Jellyfin requis.' };
+      return { ok: false, error: 'Jellyfin username required.' };
     }
 
     var permOk = await hasOriginPermission(seerrUrl);
@@ -429,7 +429,7 @@
       return {
         ok: false,
         permissionMissing: true,
-        error: 'Permission réseau requise pour ' + seerrUrl
+        error: 'Network permission required for ' + seerrUrl
       };
     }
 
@@ -454,7 +454,7 @@
         : saved.jellyfinApiKey;
 
     if (!jellyfinUrl) {
-      return { ok: false, error: 'Veuillez renseigner l’URL Jellyfin.' };
+      return { ok: false, error: 'Enter the Jellyfin URL.' };
     }
 
     var permOk = await hasOriginPermission(jellyfinUrl);
@@ -462,7 +462,7 @@
       return {
         ok: false,
         permissionMissing: true,
-        error: 'Permission réseau requise pour accéder à ' + jellyfinUrl
+        error: 'Network permission required to access ' + jellyfinUrl
       };
     }
 
@@ -482,7 +482,7 @@
       users: results.map(function (u) {
         return {
           id: u.id,
-          displayName: u.displayName || u.username || u.email || 'Utilisateur #' + u.id,
+          displayName: u.displayName || u.username || u.email || 'User #' + u.id,
           email: u.email || ''
         };
       })
@@ -496,7 +496,7 @@
     cfg.seerrUrl = ns.utils.normalizeBaseUrl(cfg.seerrUrl);
 
     if (!cfg.seerrUrl) {
-      return { ok: false, error: 'URL Seerr non configurée.' };
+      return { ok: false, error: 'Seerr URL not configured.' };
     }
 
     var kind = payload && payload.kind === 'sonarr' ? 'sonarr' : 'radarr';
@@ -511,7 +511,7 @@
   async function handleSubmitRequest(payload) {
     var settings = await loadSettings();
     if (!settings.seerrUrl) {
-      return { ok: false, error: 'Serveur Seerr non configuré.' };
+      return { ok: false, error: 'Seerr server not configured.' };
     }
 
     var requestResult = await ns.seerr.createRequest(settings, payload);
@@ -556,10 +556,10 @@
   async function handleCancelRequest(payload) {
     var settings = await loadSettings();
     if (!settings.seerrUrl) {
-      return { ok: false, error: 'Serveur Seerr non configuré.' };
+      return { ok: false, error: 'Seerr server not configured.' };
     }
     if (!payload || !payload.requestId) {
-      return { ok: false, error: 'Identifiant de demande manquant.' };
+      return { ok: false, error: 'Missing request ID.' };
     }
 
     await ns.seerr.deleteRequest(settings, payload.requestId);
@@ -594,14 +594,14 @@
       }
       case MSG.SAVE_SETTINGS: {
         if (fromContentScript) {
-          return { ok: false, error: 'Action non autorisée depuis la page.' };
+          return { ok: false, error: 'Action not allowed from the page.' };
         }
         var updated = await saveSettings(payload);
         return { ok: true, settings: updated };
       }
       case MSG.RESET_SETTINGS: {
         if (fromContentScript) {
-          return { ok: false, error: 'Action non autorisée depuis la page.' };
+          return { ok: false, error: 'Action not allowed from the page.' };
         }
         var reset = await resetSettings();
         return { ok: true, settings: reset };
@@ -629,11 +629,11 @@
         await ns.api.openOptionsPage();
         return { ok: true };
       default:
-        return { ok: false, error: 'Message inconnu : ' + String(type) };
+        return { ok: false, error: 'Unknown message: ' + String(type) };
     }
   }
 
-  // IMPORTANT : écouteur synchrone qui retourne `true` pour garder le canal ouvert sous Chrome MV3
+  // IMPORTANT: synchronous listener that returns `true` to keep the message channel open under Chrome MV3
   ns.api.raw.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     dispatchMessage(message, sender)
       .then(function (result) {
@@ -642,7 +642,7 @@
       .catch(function (err) {
         sendResponse({
           ok: false,
-          error: (err && err.message) || 'Erreur inattendue dans l’extension.',
+          error: (err && err.message) || 'Unexpected error in the extension.',
           status: (err && err.status) || 0,
           code: (err && err.code) || 'INTERNAL_ERROR'
         });

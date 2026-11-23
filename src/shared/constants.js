@@ -3,7 +3,7 @@
 
   var ns = (global.LbxSeerr = global.LbxSeerr || {});
 
-  // Enumération Seerr / Jellyseerr / Overseerr (1-based)
+  // Seerr / Jellyseerr / Overseerr enumeration (1-based)
   var MEDIA_STATUS = Object.freeze({
     UNKNOWN: 1,
     PENDING: 2,
@@ -23,21 +23,21 @@
   });
 
   var MEDIA_STATUS_META = Object.freeze({
-    1: { label: 'Non disponible', shortLabel: 'Absent', tone: 'unknown' },
-    2: { label: 'En attente', shortLabel: 'Attente', tone: 'pending' },
-    3: { label: 'En cours', shortLabel: 'En cours', tone: 'processing' },
-    4: { label: 'Partiel', shortLabel: 'Partiel', tone: 'partial' },
-    5: { label: 'Disponible', shortLabel: 'Dispo', tone: 'available' },
-    6: { label: 'Bloqué', shortLabel: 'Bloqué', tone: 'blocked' },
-    7: { label: 'Supprimé', shortLabel: 'Supprimé', tone: 'unknown' }
+    1: { label: 'Not available', shortLabel: 'Missing', tone: 'unknown' },
+    2: { label: 'Pending', shortLabel: 'Pending', tone: 'pending' },
+    3: { label: 'Downloading', shortLabel: 'Downloading', tone: 'processing' },
+    4: { label: 'Partial', shortLabel: 'Partial', tone: 'partial' },
+    5: { label: 'Available', shortLabel: 'Available', tone: 'available' },
+    6: { label: 'Blocked', shortLabel: 'Blocked', tone: 'blocked' },
+    7: { label: 'Deleted', shortLabel: 'Deleted', tone: 'unknown' }
   });
 
   var REQUEST_STATUS_META = Object.freeze({
-    1: { label: 'En attente d’approbation', tone: 'pending' },
-    2: { label: 'Approuvée', tone: 'processing' },
-    3: { label: 'Refusée', tone: 'blocked' },
-    4: { label: 'Échouée', tone: 'blocked' },
-    5: { label: 'Terminée', tone: 'available' }
+    1: { label: 'Pending approval', tone: 'pending' },
+    2: { label: 'Approved', tone: 'processing' },
+    3: { label: 'Declined', tone: 'blocked' },
+    4: { label: 'Failed', tone: 'blocked' },
+    5: { label: 'Completed', tone: 'available' }
   });
 
   var DEFAULT_SETTINGS = Object.freeze({
@@ -118,7 +118,7 @@
       if (host.indexOf(':') !== -1 && host.charAt(0) !== '[') {
         host = '[' + host + ']';
       }
-      // Omet volontairement le port : Chrome et Firefox traitent sans port comme wildcard de port
+      // Deliberately omits the port: Chrome and Firefox treat a port-less pattern as a port wildcard
       return parsed.protocol + '//' + host + '/*';
     } catch (_err) {
       return '';
@@ -141,14 +141,14 @@
     if (typeof bytes !== 'number' || !isFinite(bytes) || bytes < 0) {
       return '';
     }
-    var units = ['o', 'Ko', 'Mo', 'Go', 'To', 'Po'];
+    var units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
     var val = bytes;
     var idx = 0;
     while (val >= 1024 && idx < units.length - 1) {
       val /= 1024;
       idx += 1;
     }
-    var formatted = idx === 0 ? String(Math.round(val)) : val.toFixed(1).replace('.', ',');
+    var formatted = idx === 0 ? String(Math.round(val)) : val.toFixed(1);
     return formatted + ' ' + units[idx];
   }
 
@@ -161,7 +161,7 @@
   }
 
   function getRequestStatusMeta(status) {
-    return REQUEST_STATUS_META[status] || { label: 'Inconnue', tone: 'unknown' };
+    return REQUEST_STATUS_META[status] || { label: 'Unknown', tone: 'unknown' };
   }
 
   function pickDefaultServer(servers, preferredServerId, lastUsed, mediaInfo) {
@@ -169,7 +169,7 @@
       return null;
     }
 
-    // Privilégie la piste (HD ou 4K) qui peut encore être demandée
+    // Prefer the track (HD or 4K) that can still be requested
     var statusHd = mediaInfo && mediaInfo.status ? mediaInfo.status : MEDIA_STATUS.UNKNOWN;
     var status4k = mediaInfo && mediaInfo.status4k ? mediaInfo.status4k : MEDIA_STATUS.UNKNOWN;
     var requestableServers = servers.filter(function (srv) {
