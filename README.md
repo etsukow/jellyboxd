@@ -16,6 +16,16 @@ Works on Chrome, Edge, Brave, Firefox (128+) and Safari (macOS). Manifest V3, no
   - **Native**: rows that extend Letterboxd's own actions panel.
   - **Ticket**: a cinema ticket whose tear-off stub is the main button.
 
+## Widget styles
+
+**Native** extends Letterboxd's actions panel.
+
+![Native style: watch link, request form, and a request being downloaded](docs/images/native.png)
+
+**Ticket** turns the widget into a cinema ticket whose stub is the main button.
+
+![Ticket style: watch link, request form, and a request being downloaded](docs/images/ticket.png)
+
 ## Install
 
 Download the package for your browser from the [latest release](../../releases/latest).
