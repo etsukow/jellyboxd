@@ -579,10 +579,19 @@
     };
   }
 
+  function isExtensionPage(sender) {
+    var ext = ns.api.raw;
+    var base = ext && ext.runtime && typeof ext.runtime.getURL === 'function' ? ext.runtime.getURL('') : '';
+    var url = (sender && (sender.url || sender.origin)) || '';
+    return Boolean(base) && url.indexOf(base.replace(/\/$/, '')) === 0;
+  }
+
   async function dispatchMessage(message, sender) {
     var type = message && message.type;
     var payload = (message && message.payload) || {};
-    var fromContentScript = Boolean(sender && sender.tab);
+    // A content script runs in a web page; the options page, the popup and the setup window are
+    // extension pages, even when the options page is opened in a tab.
+    var fromContentScript = !isExtensionPage(sender);
 
     switch (type) {
       case MSG.GET_CONFIG: {
