@@ -161,10 +161,51 @@
     return null;
   }
 
+  // Quality label from the widest video stream: 4K, 1080p, 720p or SD.
+  function qualityFromWidth(width) {
+    var w = Number(width) || 0;
+    if (w >= 3200) {
+      return '4K';
+    }
+    if (w >= 1800) {
+      return '1080p';
+    }
+    if (w >= 1200) {
+      return '720p';
+    }
+    return w > 0 ? 'SD' : '';
+  }
+
+  async function getItemDetails(jellyfinUrl, jellyfinApiKey, itemId) {
+    var cleanKey = jellyfinApiKey ? String(jellyfinApiKey).trim() : '';
+    if (!itemId || !cleanKey) {
+      return null;
+    }
+    var data = await fetchJellyfinJson(
+      jellyfinUrl,
+      cleanKey,
+      '/Items?Ids=' + encodeURIComponent(String(itemId)) + '&Fields=MediaSources,DateCreated'
+    );
+    var item = data && Array.isArray(data.Items) ? data.Items[0] : null;
+    if (!item) {
+      return null;
+    }
+    var width = 0;
+    (item.MediaSources || []).forEach(function (source) {
+      (source.MediaStreams || []).forEach(function (stream) {
+        if (stream && stream.Type === 'Video' && Number(stream.Width) > width) {
+          width = Number(stream.Width);
+        }
+      });
+    });
+    return { quality: qualityFromWidth(width), addedAt: item.DateCreated || null };
+  }
+
   ns.jellyfin = {
     buildJellyfinItemUrl: buildJellyfinItemUrl,
     resolveJellyfinLinks: resolveJellyfinLinks,
     testJellyfinConnection: testJellyfinConnection,
-    findItemByTmdb: findItemByTmdb
+    findItemByTmdb: findItemByTmdb,
+    getItemDetails: getItemDetails
   };
 })(globalThis);

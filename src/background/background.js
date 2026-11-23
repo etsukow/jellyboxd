@@ -13,7 +13,7 @@
     merged.seerrUrl = ns.utils.normalizeBaseUrl(merged.seerrUrl);
     merged.jellyfinUrl = ns.utils.normalizeBaseUrl(merged.jellyfinUrl);
     merged.authMode = merged.authMode === 'cookie' ? 'cookie' : 'apiKey';
-    merged.widgetStyle = merged.widgetStyle === 'ticket' ? 'ticket' : 'native';
+    merged.widgetStyle = merged.widgetStyle === 'native' ? 'native' : 'ticket';
     return merged;
   }
 
@@ -23,7 +23,7 @@
     next.seerrUrl = ns.utils.normalizeBaseUrl(next.seerrUrl);
     next.jellyfinUrl = ns.utils.normalizeBaseUrl(next.jellyfinUrl);
     next.authMode = next.authMode === 'cookie' ? 'cookie' : 'apiKey';
-    next.widgetStyle = next.widgetStyle === 'ticket' ? 'ticket' : 'native';
+    next.widgetStyle = next.widgetStyle === 'native' ? 'native' : 'ticket';
     next.seerrApiKey = next.seerrApiKey ? String(next.seerrApiKey).trim() : '';
     next.jellyfinApiKey = next.jellyfinApiKey ? String(next.jellyfinApiKey).trim() : '';
 
@@ -75,7 +75,7 @@
       defaultRadarrRootFolder: settings.defaultRadarrRootFolder,
       rememberLastProfile: Boolean(settings.rememberLastProfile),
       expandAdvancedByDefault: Boolean(settings.expandAdvancedByDefault),
-      widgetStyle: settings.widgetStyle === 'ticket' ? 'ticket' : 'native',
+      widgetStyle: settings.widgetStyle === 'native' ? 'native' : 'ticket',
       enableTvSupport: Boolean(settings.enableTvSupport),
       lastUsedRadarr: settings.lastUsedRadarr || null,
       lastUsedSonarr: settings.lastUsedSonarr || null
@@ -208,6 +208,7 @@
             jellyfinMediaId4k: info.jellyfinMediaId4k || null,
             mediaUrl: info.mediaUrl || null,
             mediaUrl4k: info.mediaUrl4k || null,
+            mediaAddedAt: info.mediaAddedAt || null,
             requests: requests
           }
         : {
@@ -218,6 +219,7 @@
             jellyfinMediaId4k: null,
             mediaUrl: null,
             mediaUrl4k: null,
+            mediaAddedAt: null,
             requests: []
           },
       seasons: seasons
@@ -237,7 +239,8 @@
     if (!hasSeerr && !hasDirectJellyfin) {
       return {
         ok: true,
-        configured: false
+        configured: false,
+        preferences: sanitizeSettingsForContent(settings)
       };
     }
 
@@ -248,7 +251,8 @@
           ok: true,
           configured: true,
           permissionMissing: true,
-          seerrUrl: settings.seerrUrl
+          seerrUrl: settings.seerrUrl,
+          preferences: sanitizeSettingsForContent(settings)
         };
       }
 
@@ -257,7 +261,8 @@
           ok: true,
           configured: true,
           authMissing: true,
-          seerrUrl: settings.seerrUrl
+          seerrUrl: settings.seerrUrl,
+          preferences: sanitizeSettingsForContent(settings)
         };
       }
     }
@@ -275,6 +280,13 @@
 
       if (settled[0].status === 'fulfilled') {
         seerrMediaRaw = settled[0].value;
+      } else if (
+        settings.authMode === 'cookie' &&
+        settled[0].reason &&
+        (settled[0].reason.status === 401 || settled[0].reason.status === 403)
+      ) {
+        // The Seerr session ended (or never started): ask the user to sign in again.
+        return { ok: true, configured: true, signInRequired: true, seerrUrl: settings.seerrUrl, preferences: sanitizeSettingsForContent(settings) };
       } else {
         seerrError =
           (settled[0].reason && settled[0].reason.message) ||
@@ -346,6 +358,22 @@
       }
     }
 
+    // Quality and date added, read from Jellyfin when an API key is set.
+    var details = { quality: '', addedAt: mediaInfo ? mediaInfo.mediaAddedAt : null };
+    if (settings.jellyfinUrl && settings.jellyfinApiKey && jellyfinLinks.itemId) {
+      try {
+        if (await hasOriginPermission(settings.jellyfinUrl)) {
+          var itemDetails = await ns.jellyfin.getItemDetails(settings.jellyfinUrl, settings.jellyfinApiKey, jellyfinLinks.itemId);
+          if (itemDetails) {
+            details.quality = itemDetails.quality || '';
+            details.addedAt = itemDetails.addedAt || details.addedAt;
+          }
+        }
+      } catch (_detailsErr) {
+        // Optional information: never block the widget for it.
+      }
+    }
+
     var seerrMediaUrl = '';
     if (settings.seerrUrl && tmdbId) {
       var candidateSeerrUrl =
@@ -368,6 +396,7 @@
       seasons: normalized ? normalized.seasons : [],
       services: servicesData,
       jellyfin: jellyfinLinks,
+      details: details,
       preferences: sanitizeSettingsForContent(settings)
     };
   }
@@ -412,36 +441,6 @@
     };
   }
 
-  async function handleSeerrJellyfinLogin(payload) {
-    var seerrUrl = ns.utils.normalizeBaseUrl(payload && payload.seerrUrl);
-    var username = payload && payload.username ? String(payload.username).trim() : '';
-    var password = payload && payload.password ? String(payload.password) : '';
-
-    if (!seerrUrl) {
-      return { ok: false, error: 'Seerr URL required.' };
-    }
-    if (!username) {
-      return { ok: false, error: 'Jellyfin username required.' };
-    }
-
-    var permOk = await hasOriginPermission(seerrUrl);
-    if (!permOk) {
-      return {
-        ok: false,
-        permissionMissing: true,
-        error: 'Network permission required for ' + seerrUrl
-      };
-    }
-
-    var user = await ns.seerr.loginWithJellyfin(seerrUrl, username, password);
-    return {
-      ok: true,
-      user: {
-        id: user && user.id,
-        displayName: user && (user.displayName || user.username || user.email)
-      }
-    };
-  }
 
   async function handleTestJellyfinConnection(payload) {
     var saved = await loadSettings();
@@ -586,12 +585,89 @@
     return Boolean(base) && url.indexOf(base.replace(/\/$/, '')) === 0;
   }
 
+  // Setup started from a Letterboxd page: only the Seerr address comes from the page.
+  // Signing in happens in an extension window, where page scripts cannot read what is typed.
+  async function handleStartSetup(payload) {
+    var seerrUrl = ns.utils.normalizeBaseUrl(payload && payload.seerrUrl);
+    if (!seerrUrl || !ns.utils.isSafeHttpUrl(seerrUrl)) {
+      return { ok: false, error: 'Enter your Seerr address, for example seerr.example.com.' };
+    }
+    var settings = await loadSettings();
+    if (settings.seerrUrl !== seerrUrl) {
+      await saveSettings({ seerrUrl: seerrUrl, seerrApiKey: settings.authMode === 'apiKey' ? '' : settings.seerrApiKey });
+    }
+    await ns.api.openWindow(ns.api.getUrl('src/setup/setup.html?seerr=' + encodeURIComponent(seerrUrl)), 400, 600);
+    return { ok: true, seerrUrl: seerrUrl };
+  }
+
+  async function currentUser(settings) {
+    try {
+      var user = await ns.seerr.getMe(settings);
+      return user && user.id ? { displayName: user.displayName || user.username || user.email || user.jellyfinUsername || 'you' } : null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  // Sign-in from the setup window or the options page: the user's Seerr session, or an API key.
+  async function handleSetupSignIn(payload) {
+    var seerrUrl = ns.utils.normalizeBaseUrl(payload && payload.seerrUrl);
+    var method = payload && payload.method === 'apiKey' ? 'apiKey' : 'cookie';
+    if (!seerrUrl) {
+      return { ok: false, error: 'Enter your Seerr address.' };
+    }
+    if (!(await hasOriginPermission(seerrUrl))) {
+      return { ok: false, permissionMissing: true, error: 'Allow Jellyboxd to reach ' + seerrUrl + ' first.' };
+    }
+    if (method === 'apiKey') {
+      var apiKey = payload && payload.apiKey ? String(payload.apiKey).trim() : '';
+      if (!apiKey) {
+        return { ok: false, error: 'Enter your Seerr API key.' };
+      }
+      var keyUser = await currentUser({ seerrUrl: seerrUrl, authMode: 'apiKey', seerrApiKey: apiKey });
+      if (!keyUser) {
+        return { ok: false, error: 'Seerr refused this API key.' };
+      }
+      await saveSettings({ seerrUrl: seerrUrl, authMode: 'apiKey', seerrApiKey: apiKey, setupCompletedAt: Date.now() });
+      return { ok: true, signedIn: true, user: keyUser };
+    }
+    await saveSettings({ seerrUrl: seerrUrl, authMode: 'cookie' });
+    return handleCheckSession({ markComplete: true });
+  }
+
+  // Is the user signed in to Seerr? Used by the setup window while the user signs in on Seerr.
+  async function handleCheckSession(payload) {
+    var settings = await loadSettings();
+    if (!settings.seerrUrl) {
+      return { ok: true, configured: false, signedIn: false };
+    }
+    var host = settings.seerrUrl.replace(/^https?:\/\//, '');
+    if (!(await hasOriginPermission(settings.seerrUrl))) {
+      return { ok: true, configured: true, permissionMissing: true, signedIn: false, host: host, seerrUrl: settings.seerrUrl };
+    }
+    await ns.session.syncSession(settings);
+    var user = await currentUser(settings);
+    if (user && payload && payload.markComplete) {
+      await saveSettings({ setupCompletedAt: Date.now() });
+    }
+    return { ok: true, configured: true, signedIn: Boolean(user), user: user, authMode: settings.authMode, host: host, seerrUrl: settings.seerrUrl };
+  }
+
+  var SEERR_MESSAGES = [
+    MSG.TEST_SEERR_CONNECTION, MSG.GET_SEERR_USERS, MSG.GET_SERVICES,
+    MSG.GET_MEDIA_STATE, MSG.SUBMIT_REQUEST, MSG.CANCEL_REQUEST
+  ];
+
   async function dispatchMessage(message, sender) {
     var type = message && message.type;
     var payload = (message && message.payload) || {};
     // A content script runs in a web page; the options page, the popup and the setup window are
     // extension pages, even when the options page is opened in a tab.
     var fromContentScript = !isExtensionPage(sender);
+
+    if (SEERR_MESSAGES.indexOf(type) !== -1) {
+      await ns.session.syncSession(await loadSettings());
+    }
 
     switch (type) {
       case MSG.GET_CONFIG: {
@@ -617,8 +693,6 @@
       }
       case MSG.TEST_SEERR_CONNECTION:
         return handleTestSeerrConnection(payload);
-      case MSG.SEERR_JELLYFIN_LOGIN:
-        return handleSeerrJellyfinLogin(payload);
       case MSG.TEST_JELLYFIN_CONNECTION:
         return handleTestJellyfinConnection(payload);
       case MSG.GET_SEERR_USERS:
@@ -634,6 +708,15 @@
       case MSG.CLEAR_CACHE:
         await clearServicesCache();
         return { ok: true };
+      case MSG.START_SETUP:
+        return handleStartSetup(payload);
+      case MSG.CHECK_SESSION:
+        return handleCheckSession(payload);
+      case MSG.SETUP_SIGNIN:
+        if (fromContentScript) {
+          return { ok: false, error: 'Action not allowed from the page.' };
+        }
+        return handleSetupSignIn(payload);
       case MSG.OPEN_OPTIONS:
         await ns.api.openOptionsPage();
         return { ok: true };
@@ -641,6 +724,9 @@
         return { ok: false, error: 'Unknown message: ' + String(type) };
     }
   }
+
+  ns.session.watchCookies(loadSettings);
+  loadSettings().then(ns.session.syncSession);
 
   // IMPORTANT: synchronous listener that returns `true` to keep the message channel open under Chrome MV3
   ns.api.raw.runtime.onMessage.addListener(function (message, sender, sendResponse) {

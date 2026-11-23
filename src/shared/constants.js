@@ -42,7 +42,7 @@
 
   var DEFAULT_SETTINGS = Object.freeze({
     seerrUrl: '',
-    authMode: 'apiKey', // 'apiKey' | 'cookie'
+    authMode: 'cookie', // 'cookie' (the user's Seerr session) | 'apiKey'
     seerrApiKey: '',
     seerrUserId: null,
     jellyfinUrl: '',
@@ -52,10 +52,11 @@
     defaultRadarrRootFolder: '',
     rememberLastProfile: true,
     expandAdvancedByDefault: false,
-    widgetStyle: 'native', // 'native' | 'ticket'
+    widgetStyle: 'ticket', // 'ticket' | 'native'
     enableTvSupport: true,
     lastUsedRadarr: null,
-    lastUsedSonarr: null
+    lastUsedSonarr: null,
+    setupCompletedAt: 0
   });
 
   var STORAGE_KEYS = Object.freeze({
@@ -70,7 +71,6 @@
     SAVE_SETTINGS: 'LBX_SAVE_SETTINGS',
     RESET_SETTINGS: 'LBX_RESET_SETTINGS',
     TEST_SEERR_CONNECTION: 'LBX_TEST_SEERR_CONNECTION',
-    SEERR_JELLYFIN_LOGIN: 'LBX_SEERR_JELLYFIN_LOGIN',
     TEST_JELLYFIN_CONNECTION: 'LBX_TEST_JELLYFIN_CONNECTION',
     GET_SEERR_USERS: 'LBX_GET_SEERR_USERS',
     GET_SERVICES: 'LBX_GET_SERVICES',
@@ -78,7 +78,11 @@
     SUBMIT_REQUEST: 'LBX_SUBMIT_REQUEST',
     CANCEL_REQUEST: 'LBX_CANCEL_REQUEST',
     CLEAR_CACHE: 'LBX_CLEAR_CACHE',
-    OPEN_OPTIONS: 'LBX_OPEN_OPTIONS'
+    OPEN_OPTIONS: 'LBX_OPEN_OPTIONS',
+    START_SETUP: 'LBX_START_SETUP',
+    SETUP_SIGNIN: 'LBX_SETUP_SIGNIN',
+    CHECK_SESSION: 'LBX_CHECK_SESSION',
+    TAB_SUMMARY: 'LBX_TAB_SUMMARY'
   });
 
   function normalizeBaseUrl(raw) {

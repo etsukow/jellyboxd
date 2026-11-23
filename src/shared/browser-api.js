@@ -84,6 +84,20 @@
     return Promise.reject(new Error('tabs API unavailable'));
   }
 
+  // Small extension window, used for setup; falls back to a tab where popups are unsupported.
+  function openWindow(url, width, height) {
+    if (ext.windows && typeof ext.windows.create === 'function') {
+      return callApi(ext.windows, 'create', [{ url: url, type: 'popup', width: width, height: height }]).catch(function () {
+        return createTab(url);
+      });
+    }
+    return createTab(url);
+  }
+
+  function getUrl(path) {
+    return ext.runtime && typeof ext.runtime.getURL === 'function' ? ext.runtime.getURL(path) : path;
+  }
+
   ns.api = {
     raw: ext,
     isFirefoxNamespace: hasBrowserNs,
@@ -94,6 +108,9 @@
     permissionsRequest: permissionsRequest,
     sendMessage: sendMessage,
     openOptionsPage: openOptionsPage,
-    createTab: createTab
+    createTab: createTab,
+    call: callApi,
+    openWindow: openWindow,
+    getUrl: getUrl
   };
 })(globalThis);

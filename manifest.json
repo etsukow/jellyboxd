@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "description": "Shows whether a Letterboxd film is on your Jellyfin server and requests it through Seerr, with your own quality profiles.",
   "permissions": [
-    "storage"
+    "storage",
+    "cookies",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "https://letterboxd.com/*"

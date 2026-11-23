@@ -3,5 +3,6 @@ importScripts(
   '../shared/constants.js',
   'seerr-client.js',
   'jellyfin-client.js',
+  'session.js',
   'background.js'
 );

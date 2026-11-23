@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect Jellyboxd</title>
+  <link rel="stylesheet" href="../shared/ui.css" />
+  <link rel="stylesheet" href="setup.css" />
+</head>
+<body class="lbx-scope">
+  <main class="setup">
+    <form id="setupForm" class="gt is-ask" novalidate>
+      <div class="gt-top">
+        <div class="gt-line"><span>Jellyboxd</span><span>Box office</span></div>
+        <h1 class="gt-title">Connect your Seerr</h1>
+
+        <div class="gt-field">
+          <label for="seerrUrl">Seerr address</label>
+          <input id="seerrUrl" class="gt-input" type="url" inputmode="url" autocomplete="url" placeholder="https://seerr.example.com" required />
+        </div>
+
+        <div class="gt-field">
+          <span class="gt-label" id="methodLabel">Sign in with</span>
+          <div id="method" class="gt-seg" role="group" aria-labelledby="methodLabel">
+            <button type="button" data-method="cookie" aria-pressed="true">Your Seerr account</button>
+            <button type="button" data-method="apiKey" aria-pressed="false">API key</button>
+          </div>
+        </div>
+
+        <p id="sessionHelp" class="gt-help">Sign in on your Seerr as usual. This window updates by itself, and your password never goes through Jellyboxd.</p>
+
+        <div id="apiKeyField" class="gt-field" hidden>
+          <label for="apiKey">API key <small>Seerr › Settings › General, administrators only</small></label>
+          <input id="apiKey" class="gt-input" type="password" autocomplete="off" />
+        </div>
+      </div>
+      <div class="gt-perf" aria-hidden="true"></div>
+      <button id="submitBtn" type="submit" class="gt-stub">Sign in on Seerr</button>
+    </form>
+
+    <p id="status" class="dark-state" role="status" aria-live="polite" hidden></p>
+    <button id="closeBtn" type="button" class="lbx-link close-link">Not now</button>
+  </main>
+
+  <script src="../shared/browser-api.js"></script>
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/connect.js"></script>
+  <script src="setup.js"></script>
+</body>
+</html>

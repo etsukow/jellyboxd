@@ -146,21 +146,6 @@
     return fetchJson(config, '/api/v1/auth/me');
   }
 
-  function loginWithJellyfin(seerrUrl, username, password) {
-    return fetchJson(
-      { seerrUrl: seerrUrl, authMode: 'cookie' },
-      '/api/v1/auth/jellyfin',
-      {
-        method: 'POST',
-        credentials: 'include',
-        allowUnauthenticated: true,
-        body: {
-          username: username,
-          password: password
-        }
-      }
-    );
-  }
 
   function getUsers(config) {
     return fetchJson(config, '/api/v1/user?take=50');
@@ -316,7 +301,6 @@
   ns.seerr = {
     getStatus: getStatus,
     getMe: getMe,
-    loginWithJellyfin: loginWithJellyfin,
     getUsers: getUsers,
     getMediaDetails: getMediaDetails,
     getServiceInstances: getServiceInstances,
