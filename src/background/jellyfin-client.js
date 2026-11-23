@@ -1,0 +1,170 @@
+(function (global) {
+  'use strict';
+
+  var ns = (global.LbxSeerr = global.LbxSeerr || {});
+  var DEFAULT_TIMEOUT_MS = 10000;
+
+  function buildJellyfinItemUrl(jellyfinBaseUrl, itemId) {
+    var base = ns.utils.normalizeBaseUrl(jellyfinBaseUrl);
+    if (!base || !itemId) {
+      return '';
+    }
+    var candidate = base + '/web/index.html#!/details?id=' + encodeURIComponent(String(itemId));
+    return ns.utils.isSafeHttpUrl(candidate) ? candidate : '';
+  }
+
+  function resolveJellyfinLinks(mediaInfo, customJellyfinUrl) {
+    var info = mediaInfo || {};
+    var customBase = ns.utils.normalizeBaseUrl(customJellyfinUrl);
+
+    var itemId = info.jellyfinMediaId ? String(info.jellyfinMediaId) : null;
+    var itemId4k = info.jellyfinMediaId4k ? String(info.jellyfinMediaId4k) : null;
+
+    var url = '';
+    if (customBase && itemId) {
+      url = buildJellyfinItemUrl(customBase, itemId);
+    } else if (ns.utils.isSafeHttpUrl(info.mediaUrl)) {
+      url = info.mediaUrl;
+    }
+
+    var url4k = '';
+    if (customBase && itemId4k) {
+      url4k = buildJellyfinItemUrl(customBase, itemId4k);
+    } else if (ns.utils.isSafeHttpUrl(info.mediaUrl4k)) {
+      url4k = info.mediaUrl4k;
+    }
+
+    if (url4k && url4k === url) {
+      url4k = '';
+    }
+
+    return {
+      url: url || null,
+      url4k: url4k || null,
+      itemId: itemId,
+      itemId4k: itemId4k,
+      source: url ? 'seerr' : null
+    };
+  }
+
+  async function fetchJellyfinJson(baseUrl, apiKey, path) {
+    var cleanBase = ns.utils.normalizeBaseUrl(baseUrl);
+    if (!cleanBase) {
+      throw new Error('URL Jellyfin non configurée.');
+    }
+
+    var headers = {
+      Accept: 'application/json'
+    };
+    if (apiKey) {
+      headers['X-Emby-Token'] = String(apiKey).trim();
+    }
+
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function () {
+      controller.abort();
+    }, DEFAULT_TIMEOUT_MS);
+
+    var response;
+    try {
+      response = await fetch(cleanBase + path, {
+        method: 'GET',
+        headers: headers,
+        credentials: 'omit',
+        signal: controller.signal
+      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err && err.name === 'AbortError') {
+        throw new Error('Délai d’attente dépassé pour Jellyfin.');
+      }
+      throw new Error('Impossible de joindre Jellyfin (' + cleanBase + ').');
+    }
+
+    clearTimeout(timeoutId);
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Clé API Jellyfin invalide ou refusée (' + response.status + ').');
+    }
+    if (!response.ok) {
+      throw new Error('Erreur Jellyfin (' + response.status + ').');
+    }
+
+    return response.json();
+  }
+
+  async function testJellyfinConnection(jellyfinUrl, jellyfinApiKey) {
+    var cleanKey = jellyfinApiKey ? String(jellyfinApiKey).trim() : '';
+    var endpoint = cleanKey ? '/System/Info' : '/System/Info/Public';
+    var info = await fetchJellyfinJson(jellyfinUrl, cleanKey, endpoint);
+    return {
+      ok: true,
+      serverName: info && info.ServerName ? info.ServerName : 'Jellyfin',
+      version: info && info.Version ? info.Version : '',
+      id: info && info.Id ? info.Id : '',
+      authenticated: Boolean(cleanKey)
+    };
+  }
+
+  async function searchCandidateItems(baseUrl, apiKey, itemType, searchTerm) {
+    var query =
+      '/Items?Recursive=true' +
+      '&IncludeItemTypes=' + encodeURIComponent(itemType) +
+      '&Fields=ProviderIds' +
+      '&Limit=25';
+    if (searchTerm) {
+      query += '&SearchTerm=' + encodeURIComponent(searchTerm);
+    }
+    var data = await fetchJellyfinJson(baseUrl, apiKey, query);
+    return Array.isArray(data && data.Items) ? data.Items : [];
+  }
+
+  async function findItemByTmdb(jellyfinUrl, jellyfinApiKey, params) {
+    var cleanBase = ns.utils.normalizeBaseUrl(jellyfinUrl);
+    var cleanKey = jellyfinApiKey ? String(jellyfinApiKey).trim() : '';
+    if (!cleanBase || !cleanKey || !params || !params.tmdbId) {
+      return null;
+    }
+
+    var targetId = String(params.tmdbId);
+    var itemType = params.mediaType === 'tv' ? 'Series' : 'Movie';
+    var terms = [];
+    if (params.title) {
+      terms.push(params.title);
+    }
+    if (params.originalTitle && params.originalTitle !== params.title) {
+      terms.push(params.originalTitle);
+    }
+    if (terms.length === 0) {
+      terms.push('');
+    }
+
+    for (var i = 0; i < terms.length; i += 1) {
+      var items = await searchCandidateItems(cleanBase, cleanKey, itemType, terms[i]);
+      var match = items.find(function (item) {
+        var pids = item && item.ProviderIds ? item.ProviderIds : null;
+        if (!pids) {
+          return false;
+        }
+        var tmdbVal = pids.Tmdb !== undefined ? pids.Tmdb : pids.tmdb;
+        return tmdbVal !== undefined && String(tmdbVal) === targetId;
+      });
+      if (match && match.Id) {
+        return {
+          id: String(match.Id),
+          name: match.Name || '',
+          url: buildJellyfinItemUrl(cleanBase, match.Id)
+        };
+      }
+    }
+
+    return null;
+  }
+
+  ns.jellyfin = {
+    buildJellyfinItemUrl: buildJellyfinItemUrl,
+    resolveJellyfinLinks: resolveJellyfinLinks,
+    testJellyfinConnection: testJellyfinConnection,
+    findItemByTmdb: findItemByTmdb
+  };
+})(globalThis);

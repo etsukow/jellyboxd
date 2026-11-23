@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Letterboxd × Seerr / Jellyfin</title>
+  <link rel="stylesheet" href="../shared/design-tokens.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body class="lbx-scope">
+  <main class="popup-container">
+    <header class="popup-header">
+      <div class="brand">
+        <img src="../../icons/icon-32.png" alt="" class="brand-logo" />
+        <div class="brand-meta">
+          <h1>Letterboxd × Seerr</h1>
+          <span id="connBadge" class="lbx-status-plate lbx-tone-unknown" role="status">
+            <span class="lbx-led-well" aria-hidden="true"><span class="lbx-led-dot"></span></span>
+            <span id="connBadgeText">Chargement…</span>
+          </span>
+        </div>
+      </div>
+      <div class="header-links">
+        <a id="openSeerrLink" href="#" target="_blank" rel="noopener noreferrer" class="lbx-btn-tactile btn-mini hidden" title="Ouvrir Seerr">Seerr ↗</a>
+        <a id="openLetterboxdLink" href="https://letterboxd.com" target="_blank" rel="noopener noreferrer" class="lbx-btn-tactile btn-mini" title="Aller sur Letterboxd">LBX ↗</a>
+      </div>
+    </header>
+
+    <form id="quickForm" class="lbx-magic-card card">
+      <div id="quickBeam" class="lbx-border-beam" data-beam-tone="default" aria-hidden="true">
+        <div class="lbx-border-beam-light"></div>
+      </div>
+
+      <div class="lbx-card-layer card-inner">
+        <div class="field">
+          <label for="seerrUrl">URL Seerr / Jellyseerr</label>
+          <input id="seerrUrl" class="lbx-input" type="url" placeholder="https://seerr.mondomaine.fr" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <span class="field-label">Authentification</span>
+          <div id="authModeSegmented" class="lbx-segmented" role="group" aria-label="Mode d’authentification">
+            <button type="button" class="lbx-seg-btn lbx-seg-active" data-auth="apiKey" aria-pressed="true">Clé API</button>
+            <button type="button" class="lbx-seg-btn" data-auth="cookie" aria-pressed="false">Session Cookie</button>
+          </div>
+        </div>
+
+        <div id="apiKeyField" class="field">
+          <label for="seerrApiKey">Clé API Seerr</label>
+          <div class="input-with-btn">
+            <input id="seerrApiKey" class="lbx-input" type="password" placeholder="Paramètres → Général → Clé API" autocomplete="off" />
+            <button id="toggleApiKey" type="button" class="lbx-btn-tactile btn-mini" title="Afficher / Masquer">Voir</button>
+          </div>
+        </div>
+
+        <div id="cookieNote" class="hint hidden">
+          En mode Cookie, ouvrez les paramètres avancés si vous devez vous authentifier via Jellyfin.
+        </div>
+
+        <div class="field">
+          <label for="jellyfinUrl">URL Jellyfin publique (optionnel)</label>
+          <input id="jellyfinUrl" class="lbx-input" type="url" placeholder="https://jellyfin.mondomaine.fr" autocomplete="off" />
+        </div>
+
+        <button id="saveTestBtn" type="submit" class="lbx-shimmer-btn">
+          <span class="lbx-shimmer-spark" aria-hidden="true"><span class="lbx-shimmer-conic"></span></span>
+          <span class="lbx-shimmer-backdrop" aria-hidden="true"></span>
+          <span class="lbx-shimmer-highlight" aria-hidden="true"></span>
+          <span id="saveTestLabel" class="lbx-shimmer-content">Tester &amp; Enregistrer</span>
+        </button>
+
+        <div id="feedbackBox" class="feedback hidden"></div>
+      </div>
+    </form>
+
+    <section id="defaultsCard" class="lbx-magic-card card hidden">
+      <div class="lbx-card-layer card-inner">
+        <h2>Profil de qualité par défaut</h2>
+        <div class="field">
+          <label for="defaultServer">Serveur Radarr</label>
+          <div class="lbx-select-wrap">
+            <select id="defaultServer" class="lbx-select"></select>
+            <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m7 15 5 5 5-5"></path>
+              <path d="m7 9 5-5 5 5"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="field">
+          <label for="defaultProfile">Profil de qualité</label>
+          <div class="lbx-select-wrap">
+            <select id="defaultProfile" class="lbx-select"></select>
+            <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m7 15 5 5 5-5"></path>
+              <path d="m7 9 5-5 5 5"></path>
+            </svg>
+          </div>
+        </div>
+        <p id="profilesHint" class="hint"></p>
+      </div>
+    </section>
+
+    <footer class="popup-footer">
+      <button id="openOptionsBtn" type="button" class="lbx-btn-tactile lbx-btn-full">Paramètres avancés</button>
+    </footer>
+  </main>
+
+  <script src="../shared/browser-api.js"></script>
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/ui-effects.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

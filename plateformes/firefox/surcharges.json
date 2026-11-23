@@ -1,0 +1,17 @@
+{
+  "background": {
+    "scripts": [
+      "src/shared/browser-api.js",
+      "src/shared/constants.js",
+      "src/background/seerr-client.js",
+      "src/background/jellyfin-client.js",
+      "src/background/background.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "letterboxd-seerr@local.extension",
+      "strict_min_version": "128.0"
+    }
+  }
+}
