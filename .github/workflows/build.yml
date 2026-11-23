@@ -1,0 +1,132 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Chrome & Firefox packages
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Node is only used by verify.py to syntax-check every script.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Read version from manifest
+        id: version
+        run: echo "version=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check that the tag matches the manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [ "${GITHUB_REF_NAME#v}" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+      - name: Verify
+        run: python3 scripts/verify.py
+
+      - name: Build
+        run: python3 scripts/build.py
+
+      - name: Name packages
+        run: |
+          mkdir -p packages
+          cp dist/jellyboxd-chrome.zip "packages/jellyboxd-${{ steps.version.outputs.version }}-chrome.zip"
+          cp dist/jellyboxd-firefox.xpi "packages/jellyboxd-${{ steps.version.outputs.version }}-firefox.xpi"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jellyboxd-web
+          path: packages/*
+          if-no-files-found: error
+
+  safari:
+    name: Safari app (unsigned)
+    runs-on: macos-latest
+    needs: web
+    if: github.event_name != 'pull_request'
+    # Safari packaging depends on the runner's Xcode; a failure here must not block the other browsers.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the web extension
+        run: python3 scripts/build.py
+
+      - name: Convert to a Safari web extension project
+        run: |
+          xcrun safari-web-extension-converter dist/chrome \
+            --project-location build/safari \
+            --app-name Jellyboxd \
+            --bundle-identifier io.github.etsukow.jellyboxd \
+            --swift --macos-only --copy-resources \
+            --no-open --no-prompt --force
+
+      # The converter can give the app and its extension mismatched identifiers;
+      # Xcode requires the extension's to start with the app's.
+      - name: Align bundle identifiers
+        run: |
+          pbxproj=$(find build/safari -name project.pbxproj | head -n 1)
+          perl -pi -e 's/PRODUCT_BUNDLE_IDENTIFIER = "?[^";]*Extension[^";]*"?;/PRODUCT_BUNDLE_IDENTIFIER = io.github.etsukow.jellyboxd.Extension;/i; s/PRODUCT_BUNDLE_IDENTIFIER = "?(?![^";]*Extension)[^";]*"?;/PRODUCT_BUNDLE_IDENTIFIER = io.github.etsukow.jellyboxd;/i' "$pbxproj"
+          grep -n PRODUCT_BUNDLE_IDENTIFIER "$pbxproj"
+
+      - name: Build the app without signing
+        run: |
+          project=$(find build/safari -maxdepth 2 -name '*.xcodeproj' | head -n 1)
+          xcodebuild -project "$project" -scheme Jellyboxd -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build/derived \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package
+        run: |
+          mkdir -p packages
+          app=$(find build/derived/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)
+          ditto -c -k --keepParent "$app" "packages/jellyboxd-${{ needs.web.outputs.version }}-safari-macos.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jellyboxd-safari
+          path: packages/*
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v') && !cancelled() && needs.web.result == 'success'
+    needs: [web, safari]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: jellyboxd-*
+          path: packages
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" packages/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Jellyboxd $GITHUB_REF_NAME" \
+            --generate-notes
