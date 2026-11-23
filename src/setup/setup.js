@@ -5,48 +5,67 @@
   var MSG = ns.MSG;
   var params = new URLSearchParams(global.location.search);
 
-  var form = document.getElementById('setupForm');
-  var urlInput = document.getElementById('seerrUrl');
-  var methodGroup = document.getElementById('method');
-  var sessionHelp = document.getElementById('sessionHelp');
-  var apiKeyField = document.getElementById('apiKeyField');
-  var apiKeyInput = document.getElementById('apiKey');
-  var submitBtn = document.getElementById('submitBtn');
-  var statusLine = document.getElementById('status');
-  var closeBtn = document.getElementById('closeBtn');
+  var $ = function (id) {
+    return document.getElementById(id);
+  };
+  var steps = { address: $('stepAddress'), wait: $('stepWait'), done: $('stepDone') };
+  var urlInput = $('seerrUrl');
+  var apiKeyInput = $('apiKey');
+  var apiKeyField = $('apiKeyField');
+  var addressLead = $('addressLead');
+  var addressHint = $('addressHint');
+  var addressStatus = $('addressStatus');
+  var submitBtn = $('submitBtn');
+  var methodBtn = $('methodBtn');
+  var closeBtn = $('closeBtn');
+  var waitText = $('waitText');
+  var waitBox = $('waitBox');
 
   var method = 'cookie';
   var busy = false;
+  var attempt = 0;
+  var currentUrl = '';
 
-  function setStatus(text, kind) {
-    statusLine.textContent = text || '';
-    statusLine.hidden = !text;
-    statusLine.className = 'dark-state' + (kind === 'ok' ? ' is-ok' : kind === 'err' ? ' is-err' : '');
+  function show(name) {
+    Object.keys(steps).forEach(function (key) {
+      steps[key].hidden = key !== name;
+    });
+    closeBtn.textContent = name === 'done' ? 'Close' : 'Not now';
+  }
+
+  function setError(text) {
+    addressStatus.textContent = text || '';
+    addressStatus.hidden = !text;
   }
 
   function setMethod(next) {
     method = next === 'apiKey' ? 'apiKey' : 'cookie';
-    methodGroup.querySelectorAll('button[data-method]').forEach(function (btn) {
-      btn.setAttribute('aria-pressed', btn.getAttribute('data-method') === method ? 'true' : 'false');
-    });
-    apiKeyField.hidden = method !== 'apiKey';
-    sessionHelp.hidden = method === 'apiKey';
-    submitBtn.textContent = method === 'apiKey' ? 'Connect' : 'Sign in on Seerr';
-    setStatus('');
+    var key = method === 'apiKey';
+    apiKeyField.hidden = !key;
+    addressLead.hidden = key;
+    addressHint.hidden = key;
+    submitBtn.textContent = key ? 'Connect' : 'Sign in on Seerr';
+    methodBtn.textContent = key ? 'Sign in with my account instead' : 'I’m an admin, use an API key';
+    setError('');
+  }
+
+  function hostOf(url) {
+    return String(url || '').replace(/^https?:\/\//, '');
   }
 
   function finish(user) {
-    setStatus('Signed in as ' + ((user && user.displayName) || 'you') + '. You can close this window.', 'ok');
-    submitBtn.disabled = true;
-    setTimeout(function () {
-      global.close();
-    }, 1500);
+    var name = (user && user.displayName) || 'You';
+    $('doneAvatar').textContent = name.charAt(0).toUpperCase();
+    $('doneName').textContent = name;
+    $('doneHost').textContent = method === 'apiKey' ? 'Connected to ' + hostOf(currentUrl) + ' with an API key' : 'Signed in to ' + hostOf(currentUrl);
+    show('done');
+    $('doneBtn').focus();
   }
 
-  methodGroup.addEventListener('click', function (event) {
-    var btn = event.target.closest('button[data-method]');
-    if (btn && !busy) {
-      setMethod(btn.getAttribute('data-method'));
+  methodBtn.addEventListener('click', function () {
+    if (!busy) {
+      setMethod(method === 'apiKey' ? 'cookie' : 'apiKey');
+      (method === 'apiKey' ? apiKeyInput : urlInput).focus();
     }
   });
 
@@ -54,7 +73,31 @@
     global.close();
   });
 
-  form.addEventListener('submit', async function (event) {
+  $('doneBtn').addEventListener('click', function () {
+    global.close();
+  });
+
+  $('settingsBtn').addEventListener('click', function () {
+    ns.api.openOptionsPage().then(function () {
+      global.close();
+    });
+  });
+
+  $('showTabBtn').addEventListener('click', function () {
+    if (currentUrl) {
+      ns.connect.openSeerrTab(currentUrl);
+    }
+  });
+
+  $('backBtn').addEventListener('click', function () {
+    attempt += 1; // stops the waiting loop
+    busy = false;
+    submitBtn.disabled = false;
+    show('address');
+    urlInput.focus();
+  });
+
+  steps.address.addEventListener('submit', async function (event) {
     event.preventDefault();
     if (busy) {
       return;
@@ -62,12 +105,12 @@
     var seerrUrl = ns.utils.normalizeBaseUrl(urlInput.value);
     var pattern = seerrUrl ? ns.utils.buildOriginPattern(seerrUrl) : '';
     if (!pattern) {
-      setStatus('Enter your Seerr address, for example https://seerr.example.com.', 'err');
+      setError('Enter your Seerr address, for example https://seerr.example.com.');
       urlInput.focus();
       return;
     }
     if (method === 'apiKey' && !apiKeyInput.value.trim()) {
-      setStatus('Enter your Seerr API key.', 'err');
+      setError('Enter your Seerr API key.');
       apiKeyInput.focus();
       return;
     }
@@ -77,15 +120,16 @@
       method === 'apiKey' ? [pattern] : ns.utils.buildSessionPatterns(seerrUrl)
     );
     if (!granted) {
-      setStatus('Jellyboxd needs access to ' + seerrUrl.replace(/^https?:\/\//, '') + ' to work.', 'err');
+      setError('Jellyboxd needs access to ' + hostOf(seerrUrl) + ' to work.');
       return;
     }
 
+    currentUrl = seerrUrl;
     busy = true;
     submitBtn.disabled = true;
+    setError('');
     try {
       if (method === 'apiKey') {
-        setStatus('Checking the key…');
         var res = await ns.api.sendMessage({
           type: MSG.SETUP_SIGNIN,
           payload: { seerrUrl: seerrUrl, method: 'apiKey', apiKey: apiKeyInput.value }
@@ -94,27 +138,42 @@
           finish(res.user);
           return;
         }
-        setStatus((res && res.error) || 'Seerr refused this API key.', 'err');
+        setError((res && res.error) || 'Seerr refused this API key.');
       } else {
-        var done = await ns.connect.signInWithSession(seerrUrl, function (state, detail) {
-          if (state === 'checking') {
-            setStatus('Checking your Seerr session…');
-          } else if (state === 'waiting') {
-            setStatus('Sign in on the Seerr tab that just opened. This window updates by itself.');
-          } else if (state === 'signed-in') {
-            finish(detail);
-          } else if (state === 'error') {
-            setStatus(detail, 'err');
-          } else if (state === 'timeout') {
-            setStatus('No Seerr session yet. Sign in on Seerr, then try again.', 'err');
+        attempt += 1;
+        var mine = attempt;
+        $('waitHost').textContent = hostOf(seerrUrl);
+        var done = await ns.connect.signInWithSession(
+          seerrUrl,
+          function (state, detail) {
+            if (mine !== attempt) {
+              return;
+            }
+            if (state === 'waiting') {
+              waitBox.classList.remove('is-err');
+              waitText.textContent = 'Waiting for your sign-in…';
+              show('wait');
+            } else if (state === 'signed-in') {
+              finish(detail);
+            } else if (state === 'error') {
+              show('address');
+              setError(detail);
+            } else if (state === 'timeout') {
+              waitBox.classList.add('is-err');
+              waitText.textContent = 'Still no Seerr session. Sign in on Seerr, then go back and try again.';
+            }
+          },
+          function () {
+            return mine !== attempt;
           }
-        });
+        );
         if (done) {
           return;
         }
       }
     } catch (err) {
-      setStatus((err && err.message) || 'Something went wrong. Try again.', 'err');
+      show('address');
+      setError((err && err.message) || 'Something went wrong. Try again.');
     }
     busy = false;
     submitBtn.disabled = false;
@@ -127,7 +186,7 @@
     out.textContent = 'Checking…';
     var ext = ns.api.raw;
     var lines = ['Browser: ' + navigator.userAgent.replace(/.*(Version\/[\d.]+ Safari|Chrome\/[\d.]+|Firefox\/[\d.]+).*/, '$1')];
-    var seerrUrl = ns.utils.normalizeBaseUrl(urlInput.value);
+    var seerrUrl = currentUrl || ns.utils.normalizeBaseUrl(urlInput.value);
     var cookieValue = null;
     try {
       var stores = await ns.api.call(ext.cookies, 'getAllCookieStores', []).catch(function () {
@@ -171,18 +230,19 @@
   });
 
   urlInput.value = params.get('seerr') || '';
+  setMethod('cookie');
+  show('address');
   ns.api
     .sendMessage({ type: MSG.GET_CONFIG })
     .then(function (res) {
       var s = res && res.settings;
-      if (s) {
-        if (!urlInput.value) {
-          urlInput.value = s.seerrUrl || '';
-        }
-        setMethod(s.authMode === 'apiKey' ? 'apiKey' : 'cookie');
+      if (s && !urlInput.value) {
+        urlInput.value = s.seerrUrl || '';
+      }
+      if (s && s.authMode === 'apiKey') {
+        setMethod('apiKey');
       }
     })
     .catch(function () {});
-  setMethod('cookie');
   (urlInput.value ? submitBtn : urlInput).focus();
 })(globalThis);

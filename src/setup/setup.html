@@ -8,46 +8,77 @@
   <link rel="stylesheet" href="setup.css" />
 </head>
 <body class="lbx-scope">
-  <main class="setup">
-    <form id="setupForm" class="gt is-ask" novalidate>
-      <div class="gt-top">
-        <div class="gt-line"><span>Jellyboxd</span><span>Box office</span></div>
-        <h1 class="gt-title">Connect your Seerr</h1>
+  <header class="bar">
+    <img src="../../icons/icon-32.png" alt="" width="18" height="18" />
+    <b>Jellyboxd</b>
+    <button id="closeBtn" type="button" class="text-btn bar-action">Not now</button>
+  </header>
 
-        <div class="gt-field">
-          <label for="seerrUrl">Seerr address</label>
-          <input id="seerrUrl" class="gt-input" type="url" inputmode="url" autocomplete="url" placeholder="https://seerr.example.com" required />
-        </div>
-
-        <div class="gt-field">
-          <span class="gt-label" id="methodLabel">Sign in with</span>
-          <div id="method" class="gt-seg" role="group" aria-labelledby="methodLabel">
-            <button type="button" data-method="cookie" aria-pressed="true">Your Seerr account</button>
-            <button type="button" data-method="apiKey" aria-pressed="false">API key</button>
-          </div>
-        </div>
-
-        <p id="sessionHelp" class="gt-help">Sign in on your Seerr as usual. This window updates by itself, and your password never goes through Jellyboxd.</p>
-
-        <div id="apiKeyField" class="gt-field" hidden>
-          <label for="apiKey">API key <small>Seerr › Settings › General, administrators only</small></label>
-          <input id="apiKey" class="gt-input" type="password" autocomplete="off" />
-        </div>
+  <!-- Step 1: where Seerr is, and how to sign in -->
+  <form id="stepAddress" class="step" novalidate>
+    <div class="step-body">
+      <p class="kicker"><span class="steps" aria-hidden="true"><i class="on"></i><i></i><i></i></span>Step 1 of 3</p>
+      <h1 class="step-title">Where is your Seerr?</h1>
+      <p id="addressLead" class="lead">Jellyboxd checks each film you open on Letterboxd against it, and sends your requests there.</p>
+      <div class="field">
+        <label for="seerrUrl">Seerr address</label>
+        <input id="seerrUrl" class="input" type="url" inputmode="url" autocomplete="url" placeholder="https://seerr.example.com" required />
+        <p id="addressHint" class="hint">The address you type to open Seerr.</p>
       </div>
-      <div class="gt-perf" aria-hidden="true"></div>
-      <button id="submitBtn" type="submit" class="gt-stub">Sign in on Seerr</button>
-    </form>
+      <div id="apiKeyField" class="field" hidden>
+        <label for="apiKey">API key</label>
+        <input id="apiKey" class="input" type="password" autocomplete="off" />
+        <p class="hint">In Seerr, Settings › General. Only administrators have one.</p>
+      </div>
+      <p id="addressStatus" class="status is-err" role="alert" hidden></p>
+    </div>
+    <div class="step-foot">
+      <hr class="perf" />
+      <button id="submitBtn" type="submit" class="btn btn-ask btn-wide stub">Sign in on Seerr</button>
+      <button id="methodBtn" type="button" class="link">I’m an admin, use an API key</button>
+    </div>
+  </form>
 
-    <p id="status" class="dark-state" role="status" aria-live="polite" hidden></p>
-    <button id="closeBtn" type="button" class="lbx-link close-link">Not now</button>
+  <!-- Step 2: the user signs in on Seerr's own tab -->
+  <section id="stepWait" class="step" hidden>
+    <div class="step-body">
+      <p class="kicker"><span class="steps" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span>Step 2 of 3</p>
+      <h1 class="step-title">Sign in on the Seerr tab</h1>
+      <p class="lead">A tab with <span id="waitHost" class="addr"></span> just opened. Sign in there as you usually do. Your password never goes through Jellyboxd.</p>
+      <p id="waitBox" class="wait" role="status"><span class="spin" aria-hidden="true"></span><span id="waitText">Waiting for your sign-in…</span></p>
+      <p class="hint">This window notices it by itself.</p>
+      <details class="diag">
+        <summary>Having trouble?</summary>
+        <p class="hint">This check shows what Jellyboxd can see of your Seerr session. Cookie values are never shown.</p>
+        <button id="diagBtn" type="button" class="link">Run the check</button>
+        <pre id="diagOut" class="diag-out" hidden></pre>
+      </details>
+    </div>
+    <div class="step-foot">
+      <hr class="perf" />
+      <button id="showTabBtn" type="button" class="btn btn-plain btn-wide">Show the Seerr tab</button>
+      <button id="backBtn" type="button" class="link">Change the address</button>
+    </div>
+  </section>
 
-    <details class="diag">
-      <summary>Details for troubleshooting</summary>
-      <p class="diag-help">Checks what Jellyboxd can see of your Seerr session. Cookie values are never shown.</p>
-      <button id="diagBtn" type="button" class="lbx-link">Run the check</button>
-      <pre id="diagOut" class="diag-out" hidden></pre>
-    </details>
-  </main>
+  <!-- Step 3: signed in -->
+  <section id="stepDone" class="step" hidden>
+    <div class="step-body">
+      <p class="kicker"><span class="steps" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i></span>Step 3 of 3</p>
+      <h1 class="step-title">You’re in</h1>
+      <div class="who">
+        <span id="doneAvatar" class="avatar" aria-hidden="true"></span>
+        <span><b id="doneName"></b><small id="doneHost"></small></span>
+      </div>
+      <p class="lead">Open any film on Letterboxd: Jellyboxd shows whether it’s on your Jellyfin, or lets you request it.</p>
+      <p class="hint">Add your Jellyfin in the settings to see each film’s quality.</p>
+    </div>
+    <div class="step-foot">
+      <hr class="perf" />
+      <button id="doneBtn" type="button" class="btn btn-watch btn-wide stub">Back to Letterboxd</button>
+      <button id="settingsBtn" type="button" class="link">Open the settings</button>
+    </div>
+  </section>
 
   <script src="../shared/browser-api.js"></script>
   <script src="../shared/constants.js"></script>

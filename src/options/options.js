@@ -10,24 +10,24 @@
 
   var el = {
     saveState: $('saveState'),
-    seerrTicket: $('seerrTicket'),
+    saveStateText: $('saveStateText'),
     seerrState: $('seerrState'),
+    seerrAvatar: $('seerrAvatar'),
+    seerrName: $('seerrName'),
     seerrUrl: $('seerrUrl'),
     method: $('method'),
-    sessionPanel: $('sessionPanel'),
+    methodText: $('methodText'),
     apiKeyPanel: $('apiKeyPanel'),
     seerrApiKey: $('seerrApiKey'),
     showKey: $('showKey'),
     seerrUserId: $('seerrUserId'),
     loadUsers: $('loadUsers'),
     seerrAction: $('seerrAction'),
-    jellyfinTicket: $('jellyfinTicket'),
     jellyfinState: $('jellyfinState'),
     jellyfinUrl: $('jellyfinUrl'),
     jellyfinApiKey: $('jellyfinApiKey'),
     jellyfinAction: $('jellyfinAction'),
     styleCards: $('styleCards'),
-    preview: $('preview'),
     refreshProfiles: $('refreshProfiles'),
     prefServer: $('prefServer'),
     prefProfile: $('prefProfile'),
@@ -52,29 +52,27 @@
     return ns.api.sendMessage({ type: type, payload: payload || {} });
   }
 
-  function setSaveState(text) {
-    el.saveState.textContent = text;
+  function setSaveState(text, kind) {
+    el.saveStateText.textContent = text;
+    el.saveState.classList.toggle('is-ok', kind === 'ok');
+    el.saveState.classList.toggle('is-err', kind === 'err');
   }
 
   function setLineState(node, text, kind) {
-    node.textContent = text;
-    node.className = 'gt-state' + (kind === 'ok' ? ' is-ok' : kind === 'err' ? ' is-err' : '');
+    // Status nodes that also hold an icon keep their text in a .st-text child.
+    var target = node.querySelector('.st-text') || node;
+    target.textContent = text;
+    node.classList.toggle('is-ok', kind === 'ok');
+    node.classList.toggle('is-err', kind === 'err');
+  }
+
+  function setAccount(name) {
+    var label = name || 'Seerr';
+    el.seerrName.textContent = label;
+    el.seerrAvatar.textContent = label.charAt(0).toUpperCase();
   }
 
   /* ---------- previews: the real widget, rendered with its own stylesheet ---------- */
-
-  var PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 4 20 12 6 20" fill="currentColor"/></svg>';
-  var PREVIEWS = {
-    ticket:
-      '<div class="lbx-t lbx-t-go"><div class="lbx-t-top"><div class="lbx-t-line"><span>Jellyfin</span><span>Jellyboxd</span></div>' +
-      '<div class="lbx-t-head">Now showing</div><div class="lbx-t-fields"><div class="lbx-t-cell"><small>Quality</small><b>1080p</b></div>' +
-      '<div class="lbx-t-cell"><small>Added</small><b>12 Nov</b></div></div></div><div class="lbx-t-perf"></div>' +
-      '<span class="lbx-t-stub">' + PLAY + '<span>Watch on Jellyfin</span></span></div>',
-    native:
-      '<div class="lbx-n"><span class="lbx-n-row lbx-n-action lbx-n-stack"><span class="lbx-n-line"><span class="lbx-n-icon">' + PLAY +
-      '</span><span>Watch on Jellyfin</span></span><span class="lbx-n-sub">1080p · added 12 Nov</span></span>' +
-      '<div class="lbx-n-foot"><span>Open in Seerr</span><span>Refresh</span><span>Settings</span></div></div>'
-  };
 
   function loadPreviewStyles() {
     // The widget's stylesheet targets #lbx-seerr-root; previews use a class so several can coexist.
@@ -88,9 +86,12 @@
         document.head.appendChild(style);
       })
       .catch(function () {});
+    // The preview markup lives in <template> elements: the linter rejects innerHTML with a variable.
     el.styleCards.querySelectorAll('[data-prev]').forEach(function (slot) {
-      var kind = slot.getAttribute('data-prev');
-      slot.innerHTML = '<div class="lbx-prev-root lbx-w lbx-w-' + kind + '">' + PREVIEWS[kind] + '</div>';
+      var tpl = $(slot.getAttribute('data-tpl'));
+      if (tpl) {
+        slot.appendChild(tpl.content.cloneNode(true));
+      }
     });
   }
 
@@ -99,19 +100,16 @@
     el.styleCards.querySelectorAll('[data-style]').forEach(function (card) {
       card.setAttribute('aria-pressed', card.getAttribute('data-style') === widgetStyle ? 'true' : 'false');
     });
-    el.preview.className = 'lbx-prev-root lbx-w lbx-w-' + widgetStyle;
-    el.preview.innerHTML = PREVIEWS[widgetStyle];
   }
 
   /* ---------- form <-> settings ---------- */
 
   function setMethod(next) {
     method = next === 'apiKey' ? 'apiKey' : 'cookie';
-    el.method.querySelectorAll('[data-method]').forEach(function (btn) {
-      btn.setAttribute('aria-pressed', btn.getAttribute('data-method') === method ? 'true' : 'false');
-    });
+    el.methodText.textContent = method === 'apiKey' ? 'API key' : 'Your Seerr account';
+    el.method.setAttribute('data-method', method === 'apiKey' ? 'cookie' : 'apiKey');
+    el.method.textContent = method === 'apiKey' ? 'Use your Seerr account' : 'Use an API key';
     el.apiKeyPanel.hidden = method !== 'apiKey';
-    el.sessionPanel.hidden = method === 'apiKey';
     updateSeerrAction();
   }
 
@@ -119,9 +117,8 @@
     if (method === 'apiKey') {
       el.seerrAction.textContent = signedIn ? 'Check the key again' : 'Check API key';
     } else {
-      el.seerrAction.textContent = signedIn ? 'Sign in on Seerr again' : 'Sign in on Seerr';
+      el.seerrAction.textContent = signedIn ? 'Sign in again' : 'Sign in on Seerr';
     }
-    el.seerrTicket.classList.toggle('is-ask', !signedIn);
   }
 
   function option(value, text, selected) {
@@ -210,12 +207,12 @@
         var res = await send(MSG.SAVE_SETTINGS, collect());
         if (res && res.ok) {
           settings = res.settings;
-          setSaveState('Saved');
+          setSaveState('Saved', 'ok');
         } else {
-          setSaveState((res && res.error) || 'Could not save');
+          setSaveState((res && res.error) || 'Could not save', 'err');
         }
       } catch (err) {
-        setSaveState((err && err.message) || 'Could not save');
+        setSaveState((err && err.message) || 'Could not save', 'err');
       }
     }, 500);
   }
@@ -242,13 +239,21 @@
     var res = await send(MSG.CHECK_SESSION, {});
     signedIn = Boolean(res && res.signedIn);
     if (!res || !res.configured) {
+      setAccount(null);
       setLineState(el.seerrState, 'Not connected');
     } else if (res.permissionMissing) {
+      setAccount(res.user && res.user.displayName);
       setLineState(el.seerrState, 'Access not allowed yet', 'err');
     } else if (signedIn) {
-      setLineState(el.seerrState, 'Signed in as ' + ((res.user && res.user.displayName) || 'you'), 'ok');
+      setAccount(res.user && res.user.displayName);
+      setLineState(
+        el.seerrState,
+        method === 'apiKey' ? 'Connected with an API key' : 'Signed in with your Seerr account',
+        'ok'
+      );
       loadServices(false);
     } else {
+      setAccount(null);
       setLineState(el.seerrState, method === 'apiKey' ? 'API key not accepted' : 'Not signed in', 'err');
     }
     updateSeerrAction();
@@ -267,12 +272,9 @@
     }
   }
 
-  el.method.addEventListener('click', function (event) {
-    var btn = event.target.closest('[data-method]');
-    if (btn) {
-      setMethod(btn.getAttribute('data-method'));
-      saveSoon();
-    }
+  el.method.addEventListener('click', function () {
+    setMethod(el.method.getAttribute('data-method'));
+    saveSoon();
   });
 
   el.seerrAction.addEventListener('click', async function () {
@@ -364,8 +366,7 @@
     try {
       var res = await send(MSG.TEST_JELLYFIN_CONNECTION, { jellyfinUrl: jellyfinUrl, jellyfinApiKey: el.jellyfinApiKey.value.trim() });
       if (res && res.ok) {
-        setLineState(el.jellyfinState, 'Connected to ' + (res.serverName || 'Jellyfin'), 'ok');
-        el.jellyfinTicket.classList.remove('is-ask');
+        setLineState(el.jellyfinState, 'Works', 'ok');
       } else {
         setLineState(el.jellyfinState, (res && res.error) || 'Jellyfin did not answer', 'err');
       }
@@ -406,7 +407,7 @@
 
   el.clearCache.addEventListener('click', async function () {
     await send(MSG.CLEAR_CACHE, {});
-    setSaveState('Profile cache cleared');
+    setSaveState('Profile cache cleared', 'ok');
     loadServices(true);
   });
 
@@ -429,7 +430,7 @@
       servicesLoaded = false;
       apply(res.settings);
       fillServers();
-      setSaveState('Settings reset');
+      setSaveState('Settings reset', 'ok');
       refreshSeerrState();
     }
   });
@@ -446,6 +447,6 @@
       return refreshSeerrState();
     })
     .catch(function (err) {
-      setSaveState((err && err.message) || 'Could not load the settings');
+      setSaveState((err && err.message) || 'Could not load the settings', 'err');
     });
 })(globalThis);

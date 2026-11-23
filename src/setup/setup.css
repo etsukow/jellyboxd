@@ -1,22 +1,135 @@
-.setup {
-  max-width: 420px;
-  margin: 0 auto;
-  padding: 24px;
+html,
+body {
+  min-height: 100%;
+}
+
+body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  min-height: 100vh;
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.step-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px 24px 20px;
+}
+
+.step-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+
+.step-foot .perf {
+  margin-bottom: 4px;
+}
+
+.kicker {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.steps {
+  display: flex;
+  gap: 6px;
+}
+
+.steps i {
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.steps i.on {
+  background: var(--ask);
+}
+
+.step-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.lead {
+  margin: -8px 0 0;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.addr {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.wait {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--hover);
+  font-weight: 600;
+}
+
+.wait.is-err {
+  color: var(--err);
+}
+
+.wait.is-err .spin {
+  display: none;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.who b {
+  display: block;
+}
+
+.who small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 13px;
 }
 
 .diag {
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .diag summary {
   cursor: pointer;
 }
 
-.diag-help {
+.diag .hint {
   margin: 8px 0;
 }
 
@@ -24,14 +137,10 @@
   margin: 8px 0 0;
   padding: 12px;
   border-radius: 8px;
-  background: var(--page-2);
+  background: var(--hover);
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
   white-space: pre-wrap;
   user-select: all;
-}
-
-.close-link {
-  align-self: center;
 }

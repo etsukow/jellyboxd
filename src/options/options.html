@@ -8,113 +8,138 @@
   <link rel="stylesheet" href="options.css" />
 </head>
 <body class="lbx-scope">
-  <header class="app-head page-head">
-    <img src="../../icons/icon-48.png" alt="" width="30" height="30" />
-    <b>Jellyboxd</b>
-    <span id="saveState" class="app-state" role="status" aria-live="polite">Changes save as you go</span>
-  </header>
+  <div class="sp">
+    <header class="sp-head">
+      <img src="../../icons/icon-48.png" alt="" width="28" height="28" />
+      <h1>Jellyboxd settings</h1>
+      <span id="saveState" class="saved" role="status" aria-live="polite">
+        <svg class="check-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="var(--check)" /><path d="M4.6 8.2l2.2 2.2 4.6-4.8" fill="none" stroke="var(--check-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        <span id="saveStateText">Changes save as you go</span>
+      </span>
+    </header>
 
-  <div class="page-body">
-    <main class="page-main">
-      <section id="seerrTicket" class="gt is-ask" aria-labelledby="t1">
-        <div class="gt-top">
-          <div class="gt-line"><span>01 · Seerr</span><span id="seerrState" class="gt-state">Not connected</span></div>
-          <h2 id="t1" class="gt-title">Connect Seerr</h2>
-          <div class="gt-field">
-            <label for="seerrUrl">Seerr address</label>
-            <input id="seerrUrl" class="gt-input" type="url" inputmode="url" autocomplete="url" placeholder="https://seerr.example.com" />
+    <section class="grp" aria-labelledby="t1">
+      <h2 id="t1">Seerr</h2>
+      <div class="list">
+        <div class="r acct">
+          <div class="who2">
+            <span class="avatar" id="seerrAvatar" aria-hidden="true">S</span>
+            <span>
+              <b id="seerrName">Seerr</b>
+              <small id="seerrState">Not connected</small>
+            </span>
           </div>
-          <div class="gt-field">
-            <span class="gt-label" id="methodLabel">Sign in with</span>
-            <div id="method" class="gt-seg" role="group" aria-labelledby="methodLabel">
-              <button type="button" data-method="cookie" aria-pressed="true">Your Seerr account</button>
-              <button type="button" data-method="apiKey" aria-pressed="false">API key</button>
-            </div>
+          <button id="seerrAction" type="button" class="btn btn-plain btn-small">Sign in on Seerr</button>
+        </div>
+        <div class="r">
+          <span class="k">Address</span>
+          <span class="v"><input id="seerrUrl" class="input" type="url" inputmode="url" autocomplete="url" placeholder="https://seerr.example.com" aria-label="Seerr address" /></span>
+        </div>
+        <div class="r">
+          <span class="k">Sign-in method</span>
+          <span class="v"><span id="methodText">Your Seerr account</span><button id="method" type="button" class="link" data-method="apiKey">Use an API key</button></span>
+        </div>
+        <div id="apiKeyPanel" hidden>
+          <div class="r">
+            <span class="k">API key<small>Seerr › Settings › General, administrators only</small></span>
+            <span class="v"><input id="seerrApiKey" class="input" type="password" autocomplete="off" aria-label="Seerr API key" /><button id="showKey" type="button" class="link">Show</button></span>
           </div>
-          <p id="sessionPanel" class="gt-help">You sign in on your Seerr itself. Your password never goes through Jellyboxd.</p>
-          <div id="apiKeyPanel" class="api-panel" hidden>
-            <div class="gt-field">
-              <label for="seerrApiKey">API key <small>Seerr › Settings › General, administrators only</small></label>
-              <div class="gt-with-link">
-                <input id="seerrApiKey" class="gt-input" type="password" autocomplete="off" />
-                <button id="showKey" type="button" class="lbx-link">Show</button>
-              </div>
-            </div>
-            <div class="gt-field">
-              <label for="seerrUserId">Request as <small>optional</small></label>
-              <div class="gt-with-link">
-                <select id="seerrUserId" class="gt-select"><option value="">The API key owner</option></select>
-                <button id="loadUsers" type="button" class="lbx-link">Load users</button>
-              </div>
-            </div>
+          <div class="r">
+            <span class="k">Request as<small>optional</small></span>
+            <span class="v"><select id="seerrUserId" class="select"><option value="">The API key owner</option></select><button id="loadUsers" type="button" class="link">Load users</button></span>
           </div>
         </div>
-        <div class="gt-perf" aria-hidden="true"></div>
-        <button id="seerrAction" type="button" class="gt-stub">Sign in on Seerr</button>
-      </section>
-
-      <section id="jellyfinTicket" class="gt" aria-labelledby="t2">
-        <div class="gt-top">
-          <div class="gt-line"><span>02 · Jellyfin</span><span id="jellyfinState" class="gt-state">Optional</span></div>
-          <h2 id="t2" class="gt-title">Add Jellyfin</h2>
-          <div class="gt-field">
-            <label for="jellyfinUrl">Public Jellyfin address <small>for the Watch link</small></label>
-            <input id="jellyfinUrl" class="gt-input" type="url" inputmode="url" placeholder="https://jellyfin.example.com" />
-          </div>
-          <div class="gt-field">
-            <label for="jellyfinApiKey">API key <small>for quality and date added</small></label>
-            <input id="jellyfinApiKey" class="gt-input" type="password" autocomplete="off" />
-          </div>
-        </div>
-        <div class="gt-perf" aria-hidden="true"></div>
-        <button id="jellyfinAction" type="button" class="gt-stub">Check Jellyfin</button>
-      </section>
-
-      <section class="gt" aria-labelledby="t3">
-        <div class="gt-top">
-          <div class="gt-line"><span>03 · Widget</span><span>Shows on film pages</span></div>
-          <h2 id="t3" class="gt-title">Choose a style</h2>
-          <div id="styleCards" class="style-cards" role="group" aria-labelledby="t3">
-            <button type="button" class="style-card" data-style="ticket" aria-pressed="true"><span class="style-prev" data-prev="ticket"></span><b>Ticket</b><span>A paper cinema ticket</span></button>
-            <button type="button" class="style-card" data-style="native" aria-pressed="false"><span class="style-prev" data-prev="native"></span><b>Native</b><span>Rows like Letterboxd’s own panel</span></button>
-          </div>
-        </div>
-      </section>
-
-      <section class="gt" aria-labelledby="t4">
-        <div class="gt-top">
-          <div class="gt-line"><span>04 · Requests</span><button id="refreshProfiles" type="button" class="lbx-link">Refresh profiles</button></div>
-          <h2 id="t4" class="gt-title">Request defaults</h2>
-          <div class="gt-two">
-            <div class="gt-field">
-              <label for="prefServer">Radarr server</label>
-              <select id="prefServer" class="gt-select"><option value="">Pick automatically</option></select>
-            </div>
-            <div class="gt-field">
-              <label for="prefProfile">Quality profile</label>
-              <select id="prefProfile" class="gt-select"><option value="">Server default</option></select>
-            </div>
-          </div>
-          <div class="gt-field">
-            <label for="prefFolder">Root folder</label>
-            <select id="prefFolder" class="gt-select"><option value="">Server default</option></select>
-          </div>
-          <label class="gt-check"><input id="rememberLastProfile" type="checkbox" /><span>Remember the last server and profile I used</span></label>
-          <label class="gt-check"><input id="expandAdvancedByDefault" type="checkbox" /><span>Open advanced options by default</span></label>
-          <label class="gt-check"><input id="enableTvSupport" type="checkbox" /><span>Handle series and miniseries listed on Letterboxd</span></label>
-        </div>
-      </section>
-
-      <p class="page-foot"><button id="clearCache" type="button" class="lbx-link">Clear profile cache</button><button id="resetAll" type="button" class="lbx-link">Reset all settings</button></p>
-    </main>
-
-    <aside class="page-aside" aria-label="Preview">
-      <p class="aside-label">Preview on a film page</p>
-      <div class="lb-mock">
-        <div class="lb-panel"><div><span>Watch</span><span>Like</span><span>Watchlist</span></div><div class="lb-stars">★★★★★</div><div>Review or log…</div></div>
-        <div id="preview" class="lbx-prev-root lbx-w lbx-w-ticket"></div>
       </div>
-    </aside>
+    </section>
+
+    <section class="grp" aria-labelledby="t2">
+      <h2 id="t2">Jellyfin</h2>
+      <p class="note">Optional. Adds the Watch link, and each film's quality and date added.</p>
+      <div class="list">
+        <div class="r">
+          <span class="k">Public address</span>
+          <span class="v"><input id="jellyfinUrl" class="input" type="url" inputmode="url" placeholder="https://jellyfin.example.com" aria-label="Jellyfin public address" /></span>
+        </div>
+        <div class="r">
+          <span class="k">API key<small>Dashboard › API keys</small></span>
+          <span class="v">
+            <input id="jellyfinApiKey" class="input" type="password" autocomplete="off" aria-label="Jellyfin API key" />
+            <span id="jellyfinState" class="status"><svg class="check-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="var(--check)" /><path d="M4.6 8.2l2.2 2.2 4.6-4.8" fill="none" stroke="var(--check-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg><span class="st-text"></span></span>
+            <button id="jellyfinAction" type="button" class="btn btn-plain btn-small">Check Jellyfin</button>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="grp" aria-labelledby="t3">
+      <h2 id="t3">On Letterboxd</h2>
+      <div id="styleCards" class="styles" role="group" aria-labelledby="t3">
+        <button type="button" class="stile" data-style="ticket" aria-pressed="true">
+          <span class="stage2" data-prev="ticket" data-tpl="previewTicket"></span>
+          <b>Ticket</b>
+          <span class="d">A paper cinema ticket</span>
+        </button>
+        <button type="button" class="stile" data-style="native" aria-pressed="false">
+          <span class="stage2" data-prev="native" data-tpl="previewNative"></span>
+          <b>Native</b>
+          <span class="d">Rows like Letterboxd's own panel</span>
+        </button>
+      </div>
+
+      <template id="previewTicket">
+        <div class="lbx-prev-root lbx-w lbx-w-ticket">
+          <div class="lbx-t lbx-t-go">
+            <div class="lbx-t-top">
+              <div class="lbx-t-line"><span>Jellyfin</span><span>Jellyboxd</span></div>
+              <div class="lbx-t-head">Now showing</div>
+              <div class="lbx-t-fields">
+                <div class="lbx-t-cell"><small>Quality</small><b>1080p</b></div>
+                <div class="lbx-t-cell"><small>Added</small><b>12 Nov</b></div>
+              </div>
+            </div>
+            <div class="lbx-t-perf"></div>
+            <span class="lbx-t-stub"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 4 20 12 6 20" fill="currentColor" /></svg><span>Watch on Jellyfin</span></span>
+          </div>
+        </div>
+      </template>
+      <template id="previewNative">
+        <div class="lbx-prev-root lbx-w lbx-w-native">
+          <div class="lbx-n">
+            <span class="lbx-n-row lbx-n-action lbx-n-stack">
+              <span class="lbx-n-line"><span class="lbx-n-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 4 20 12 6 20" fill="currentColor" /></svg></span><span>Watch on Jellyfin</span></span>
+              <span class="lbx-n-sub">1080p · added 12 Nov</span>
+            </span>
+            <div class="lbx-n-foot"><span>Open in Seerr</span><span>Refresh</span><span>Settings</span></div>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <section class="grp" aria-labelledby="t4">
+      <h2 id="t4">Requests<button id="refreshProfiles" type="button" class="link">Refresh profiles</button></h2>
+      <div class="list">
+        <div class="r">
+          <span class="k">Radarr server</span>
+          <span class="v"><select id="prefServer" class="select"><option value="">Pick automatically</option></select></span>
+        </div>
+        <div class="r">
+          <span class="k">Quality profile</span>
+          <span class="v"><select id="prefProfile" class="select"><option value="">Server default</option></select></span>
+        </div>
+        <div class="r">
+          <span class="k">Root folder</span>
+          <span class="v"><select id="prefFolder" class="select"><option value="">Server default</option></select></span>
+        </div>
+        <label class="r sw"><span>Remember the last server and profile I used</span><input id="rememberLastProfile" type="checkbox" class="switch" /></label>
+        <label class="r sw"><span>Show request options before sending</span><input id="expandAdvancedByDefault" type="checkbox" class="switch" /></label>
+        <label class="r sw"><span>Handle series listed on Letterboxd</span><input id="enableTvSupport" type="checkbox" class="switch" /></label>
+      </div>
+    </section>
+
+    <div class="danger">
+      <button id="clearCache" type="button" class="link">Clear profile cache</button>
+      <button id="resetAll" type="button" class="link is-danger">Reset all settings</button>
+    </div>
   </div>
 
   <script src="../shared/browser-api.js"></script>

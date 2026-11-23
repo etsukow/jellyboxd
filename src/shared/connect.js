@@ -29,7 +29,11 @@
   }
 
   // onStatus(state, detail): 'checking' | 'waiting' | 'signed-in' (detail = user) | 'error' (detail = text) | 'timeout'
-  async function signInWithSession(seerrUrl, onStatus) {
+  // shouldStop(): optional, returns true to stop waiting (the user went back).
+  async function signInWithSession(seerrUrl, onStatus, shouldStop) {
+    var stopped = function () {
+      return typeof shouldStop === 'function' && shouldStop();
+    };
     var MSG = ns.MSG;
     onStatus('checking');
     var first = await ns.api.sendMessage({ type: MSG.SETUP_SIGNIN, payload: { seerrUrl: seerrUrl, method: 'cookie' } });
@@ -46,6 +50,9 @@
     var started = Date.now();
     while (Date.now() - started < MAX_WAIT_MS) {
       await wait(POLL_MS);
+      if (stopped()) {
+        return false;
+      }
       var res = await ns.api.sendMessage({ type: MSG.CHECK_SESSION, payload: { markComplete: true } });
       if (res && res.signedIn) {
         onStatus('signed-in', res.user);
@@ -56,5 +63,5 @@
     return false;
   }
 
-  ns.connect = { signInWithSession: signInWithSession };
+  ns.connect = { signInWithSession: signInWithSession, openSeerrTab: openSeerrTab };
 })(globalThis);

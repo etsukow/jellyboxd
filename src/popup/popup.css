@@ -1,27 +1,91 @@
 body {
-  width: 360px;
+  width: 340px;
 }
 
-.popup {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.film {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 14px;
   padding: 16px;
 }
 
-.popup .app-head b {
-  font-size: 17px;
+.film.no-poster {
+  grid-template-columns: 1fr;
 }
 
-.popup .push {
-  margin-left: auto;
+.poster {
+  display: block;
+  width: 72px;
+  height: 108px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--hover);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
-.popup .gt-top {
-  padding: 16px 20px 20px;
-  gap: 8px;
+.film-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.popup .gt-title {
-  font-size: 19px;
+.film-title,
+.message-title {
+  margin: 2px 0;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.film-meta {
+  margin: 0 0 auto;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.film-text .status {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.film-detail {
+  margin: 2px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 16px 16px;
+}
+
+.message-title {
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.message-text {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.actions .perf {
+  margin-bottom: 2px;
+}
+
+.accounts {
+  border-top: 1px solid var(--line);
 }

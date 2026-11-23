@@ -1,158 +1,287 @@
-.page-head {
-  padding: 16px 32px;
-  border-bottom: 1px solid var(--line);
+/* Settings page: one centred column of grouped lists (label left, value right).
+   Everything colourful comes from the tokens in ui.css; only layout lives here. */
+
+body.lbx-scope {
+  background: var(--page);
 }
 
-.page-body {
-  display: grid;
-  grid-template-columns: minmax(0, 640px) 280px;
-  justify-content: center;
-  gap: 32px;
-  padding: 32px;
-}
-
-.page-main {
+.sp {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  min-width: 0;
+  gap: 28px;
+  max-width: 640px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 32px 24px;
 }
 
-.api-panel {
+/* ---------- header ---------- */
+
+.sp-head {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
 }
 
-.page-foot {
+.sp-head img {
+  width: 28px;
+  height: 28px;
+}
+
+.sp-head h1 {
   margin: 0;
-  display: flex;
-  gap: 24px;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
-.page-aside {
-  position: sticky;
-  top: 24px;
-  align-self: start;
+.saved {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.saved .check-icon {
+  display: none;
+}
+
+.saved.is-ok {
+  color: var(--ok);
+}
+
+.saved.is-ok .check-icon {
+  display: block;
+}
+
+.saved.is-err {
+  color: var(--err);
+}
+
+/* ---------- groups and rows ---------- */
+
+.grp {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.aside-label {
-  margin: 0;
+.grp > h2 {
+  margin: 0 0 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.grp > h2 .link {
+  margin-left: auto;
+}
+
+.grp .note {
+  margin: 0 0 0 2px;
   color: var(--ink-2);
   font-size: 13px;
+}
+
+.list {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.r {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 52px;
+  padding: 8px 14px;
+}
+
+/* Hairlines between rows, including across the hidden apiKeyPanel wrapper. */
+.list .r + .r,
+.list .r + #apiKeyPanel > .r:first-child,
+#apiKeyPanel .r + .r {
+  border-top: 1px solid var(--line);
+}
+
+.r > .k {
+  font-size: 14px;
   font-weight: 500;
 }
 
-/* Fake Letterboxd sidebar around the preview */
-.lb-mock {
-  padding: 16px 25px 20px;
-  border-radius: 8px;
-  background: #14181c;
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-
-.lb-panel {
-  border-radius: 3px;
-  overflow: hidden;
-  background: #445566;
-  color: #ddeeff;
+.r > .k small {
+  display: block;
+  margin-top: 1px;
+  color: var(--ink-2);
   font-size: 12px;
-  text-align: center;
+  font-weight: 400;
 }
 
-.lb-panel div {
-  padding: 7px 10px;
-  border-top: 1px solid #2c3440;
-}
-
-.lb-panel div:first-child {
+.r .v {
   display: flex;
-  justify-content: space-around;
-  border-top: 0;
-  color: #99aabb;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
 }
 
-.lb-stars {
-  color: #2c3440;
-  font-size: 15px;
-  letter-spacing: 3px;
+.r .v .input,
+.r .v .select {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  font-size: 14px;
 }
 
-/* Style picker: each card shows the real widget */
-.style-cards {
+.r .v .link {
+  white-space: nowrap;
+}
+
+/* Account row at the top of the Seerr list. */
+.acct {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 64px;
+}
+
+.acct .who2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.acct .who2 b {
+  font-weight: 600;
+}
+
+.acct small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.acct small.is-ok {
+  color: var(--ok);
+}
+
+.acct small.is-err {
+  color: var(--err);
+}
+
+/* The check icon only shows when a status line turned is-ok. */
+.status .check-icon {
+  display: none;
+}
+
+.status.is-ok .check-icon {
+  display: block;
+}
+
+/* ---------- style tiles ---------- */
+
+.styles {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 
-.style-card {
+.stile {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  padding: 16px;
-  border: 2px solid var(--paper-line);
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: #14181c;
+  background: var(--surface);
   color: var(--ink);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--in) var(--ease);
+  transition: box-shadow 150ms var(--ease), background-color 150ms var(--ease);
 }
 
-.style-card:hover {
-  border-color: var(--paper-ink-2);
+.stile:hover {
+  background: var(--hover);
 }
 
-.style-card[aria-pressed="true"] {
-  border-color: var(--accent);
+.stile[aria-pressed="true"] {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--ask);
 }
 
-.style-card b {
-  margin-top: 8px;
-  font-weight: 600;
+.stile .stage2 {
+  align-self: stretch;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 244px;
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: #14181c;
 }
 
-.style-card > span:last-child {
-  color: var(--ink-2);
-  font-size: 14px;
-}
-
-.style-prev {
-  display: block;
+.stile .stage2 .lbx-prev-root {
+  width: 100%;
+  max-width: 230px;
   pointer-events: none;
 }
 
-.style-prev .lbx-prev-root,
-.lb-mock .lbx-prev-root {
-  margin: 12px 0 0;
+.stile b {
+  font-size: 14px;
 }
 
-.style-prev .lbx-prev-root {
-  margin: 0;
+.stile .d {
+  color: var(--ink-2);
+  font-size: 13px;
 }
 
-@media (max-width: 900px) {
-  .page-body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .page-aside {
-    position: static;
-  }
+/* ---------- switch rows ---------- */
+
+.sw {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
+
+.sw > span {
+  font-size: 14px;
+}
+
+/* ---------- footer ---------- */
+
+.danger {
+  display: flex;
+  gap: 20px;
+  padding: 4px 2px 0;
+}
+
+.link.is-danger.is-armed {
+  font-weight: 700;
+}
+
+/* ---------- narrow windows ---------- */
 
 @media (max-width: 560px) {
-  .page-head,
-  .page-body {
-    padding-left: 16px;
-    padding-right: 16px;
+  .r,
+  .acct {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
-  .gt-two,
-  .style-cards {
+
+  .sw {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .styles {
     grid-template-columns: 1fr;
   }
+}
+
+#method {
+  margin-left: auto;
 }
