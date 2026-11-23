@@ -78,6 +78,10 @@ Load the repository root as an unpacked extension in Chrome while working: `mani
 | `safari/` | Xcode project wrapping the extension for Safari. |
 | `scripts/` | Build and checks (Python 3, standard library only). |
 
+## Privacy
+
+Jellyboxd only talks to the Seerr and Jellyfin servers you set up, and collects nothing. See the [privacy policy](PRIVACY.md).
+
 ## License
 
 [MIT](LICENSE)
