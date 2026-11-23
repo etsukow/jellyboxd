@@ -8,93 +8,24 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body class="lbx-scope">
-  <main class="popup-container">
-    <header class="popup-header">
-      <div class="brand">
-        <img src="../../icons/icon-32.png" alt="" class="brand-logo" />
-        <div class="brand-meta">
-          <h1>Jellyboxd</h1>
-          <span id="connBadge" class="lbx-status lbx-tone-unknown" role="status">
-            <span id="connBadgeText">Loading…</span>
-          </span>
-        </div>
-      </div>
-      <div class="header-links">
-        <a id="openSeerrLink" href="#" target="_blank" rel="noopener noreferrer" class="lbx-btn btn-mini hidden" title="Open Seerr">Seerr ↗</a>
-        <a id="openLetterboxdLink" href="https://letterboxd.com" target="_blank" rel="noopener noreferrer" class="lbx-btn btn-mini" title="Go to Letterboxd">Letterboxd ↗</a>
-      </div>
+  <main class="popup">
+    <header class="app-head">
+      <img src="../../icons/icon-32.png" alt="" width="22" height="22" />
+      <b>Jellyboxd</b>
+      <button id="openSettings" type="button" class="lbx-link push">Settings</button>
     </header>
 
-    <form id="quickForm" class="card">
-      <div class="card-inner">
-        <div class="field">
-          <label for="seerrUrl">Seerr URL</label>
-          <input id="seerrUrl" class="lbx-input" type="url" placeholder="https://seerr.example.com" autocomplete="off" />
-        </div>
-
-        <div class="field">
-          <span class="field-label">Sign-in method</span>
-          <div id="authModeSegmented" class="lbx-segmented" role="group" aria-label="Sign-in method">
-            <button type="button" class="lbx-seg-btn lbx-seg-active" data-auth="apiKey" aria-pressed="true">API key</button>
-            <button type="button" class="lbx-seg-btn" data-auth="cookie" aria-pressed="false">Browser session</button>
-          </div>
-        </div>
-
-        <div id="apiKeyField" class="field">
-          <label for="seerrApiKey">Seerr API key</label>
-          <div class="input-with-btn">
-            <input id="seerrApiKey" class="lbx-input" type="password" placeholder="Settings → General → API Key" autocomplete="off" />
-            <button id="toggleApiKey" type="button" class="lbx-btn btn-mini" title="Show or hide">Show</button>
-          </div>
-        </div>
-
-        <div id="cookieNote" class="hint hidden">
-          With a browser session, open the advanced settings to sign in with your Jellyfin account.
-        </div>
-
-        <div class="field">
-          <label for="jellyfinUrl">Public Jellyfin URL (optional)</label>
-          <input id="jellyfinUrl" class="lbx-input" type="url" placeholder="https://jellyfin.example.com" autocomplete="off" />
-        </div>
-
-        <button id="saveTestBtn" type="submit" class="lbx-btn lbx-btn-primary lbx-btn-full">
-          <span id="saveTestLabel">Test &amp; save</span>
-        </button>
-
-        <div id="feedbackBox" class="feedback hidden"></div>
+    <section id="ticket" class="gt" aria-labelledby="ticketTitle">
+      <div class="gt-top">
+        <div class="gt-line"><span id="ticketLeft">Jellyboxd</span><span id="ticketRight"></span></div>
+        <h1 id="ticketTitle" class="gt-title">Checking…</h1>
+        <p id="ticketText" class="gt-help"></p>
       </div>
-    </form>
-
-    <section id="defaultsCard" class="card hidden">
-      <div class="card-inner">
-        <h2>Default quality profile</h2>
-        <div class="field">
-          <label for="defaultServer">Radarr server</label>
-          <div class="lbx-select-wrap">
-            <select id="defaultServer" class="lbx-select"></select>
-            <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m7 15 5 5 5-5"></path>
-              <path d="m7 9 5-5 5 5"></path>
-            </svg>
-          </div>
-        </div>
-        <div class="field">
-          <label for="defaultProfile">Quality profile</label>
-          <div class="lbx-select-wrap">
-            <select id="defaultProfile" class="lbx-select"></select>
-            <svg class="lbx-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m7 15 5 5 5-5"></path>
-              <path d="m7 9 5-5 5 5"></path>
-            </svg>
-          </div>
-        </div>
-        <p id="profilesHint" class="hint"></p>
-      </div>
+      <div class="gt-perf" aria-hidden="true"></div>
+      <button id="ticketAction" type="button" class="gt-stub" hidden></button>
     </section>
 
-    <footer class="popup-footer">
-      <button id="openOptionsBtn" type="button" class="lbx-btn lbx-btn-full">Advanced settings</button>
-    </footer>
+    <p id="connection" class="dark-state" role="status"></p>
   </main>
 
   <script src="../shared/browser-api.js"></script>
