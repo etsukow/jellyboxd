@@ -2,7 +2,7 @@
 
 A browser extension that brings your **Seerr** (Jellyseerr, Overseerr) and **Jellyfin** servers to **Letterboxd** film and review pages: see whether a film is on your server, play it, or request it in one click.
 
-Works on Chrome, Edge, Brave, Firefox (128+) and Safari (macOS). Manifest V3, no build step, no third-party dependency.
+Works on Chrome, Edge, Brave, Firefox (140+) and Safari (macOS). Manifest V3, no build step, no third-party dependency.
 
 ## Features
 
